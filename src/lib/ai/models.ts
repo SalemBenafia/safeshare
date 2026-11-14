@@ -10,7 +10,6 @@ import {
   type LanguageModelCreateOptions,
 } from "firebase/ai";
 import { getFirebaseApp } from "../firebase";
-import { notImplemented } from "../notImplemented";
 import { PII_TYPES } from "../pii/types";
 import { DEFAULT_SETTINGS } from "../settings";
 
@@ -43,6 +42,7 @@ export const PII_SCAN_SCHEMA = Schema.object({
 
 let ai: AI | undefined;
 let scan: GenerativeModel | undefined;
+let imageRead: GenerativeModel | undefined;
 let hybrid: GenerativeModel | undefined;
 let cloud: GenerativeModel | undefined;
 
@@ -66,9 +66,18 @@ export function scanModel(): GenerativeModel {
   return scan;
 }
 
-/** Image reading (JPEG/PNG to text). MUST use InferenceMode.ONLY_ON_DEVICE. */
+/**
+ * Image reading (JPEG/PNG to text). ONLY_ON_DEVICE: the photo never leaves the device.
+ * The Prompt API only accepts images when the session declares an image input,
+ * which DEVICE_CREATE_OPTIONS does ({ type: "image" } in expectedInputs).
+ * NEVER change this to a cloud-capable mode.
+ */
 export function imageReadModel(): GenerativeModel {
-  return notImplemented("imageReadModel");
+  imageRead ??= getGenerativeModel(getAIInstance(), {
+    mode: InferenceMode.ONLY_ON_DEVICE,
+    onDeviceParams: { createOptions: DEVICE_CREATE_OPTIONS },
+  });
+  return imageRead;
 }
 
 /** Task model for short work: PREFER_ON_DEVICE. Send masked text only. */

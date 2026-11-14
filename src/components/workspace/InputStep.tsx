@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
+import { ImageInput } from "./ImageInput";
 import { SampleMenu } from "./SampleMenu";
 import { ScanStatus } from "./ScanStatus";
 import { useWorkspace } from "./WorkspaceProvider";
@@ -28,7 +29,7 @@ export function InputStep() {
             1. Your document
           </h2>
           <p className="text-sm text-muted">
-            Paste text or load a sample. It stays in this browser tab.
+            Paste text, load a sample, or read a photo. It stays in this browser tab.
           </p>
         </div>
         <SampleMenu disabled={scanning} />
@@ -55,6 +56,8 @@ export function InputStep() {
             " · Long document: some tasks may use the cloud later (masked text only)."}
         </p>
       </div>
+
+      <ImageInput busy={scanning} />
 
       <div className="flex flex-wrap items-center gap-4">
         <button
