@@ -28,7 +28,7 @@ export function ScanStatus() {
       ? `${found}. Scanned on-device. Nothing left your computer.`
       : `${found} with the basic scanner. Nothing left your computer.`;
   } else if (scan.status === "error") {
-    tone = "text-red-700";
+    tone = "text-danger";
     message = `The scan failed: ${scan.error}`;
   }
 

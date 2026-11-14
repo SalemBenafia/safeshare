@@ -50,7 +50,7 @@ export function AddItemForm({ value, onChange }: Props) {
           }}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? "add-error" : undefined}
-          className="block w-full rounded-md border border-line bg-canvas px-3 py-2 font-mono text-sm focus:outline-2 focus:outline-device"
+          className="block w-full rounded-md border border-line-strong bg-canvas px-3 py-2 font-mono text-sm focus:outline-2 focus:outline-device"
         />
       </div>
       <div className="flex items-end gap-2">
@@ -62,7 +62,7 @@ export function AddItemForm({ value, onChange }: Props) {
             id="add-type"
             value={type}
             onChange={(e) => setType(e.target.value as PiiType)}
-            className="block w-full rounded-md border border-line bg-canvas px-2 py-2 text-sm focus:outline-2 focus:outline-device"
+            className="block w-full rounded-md border border-line-strong bg-canvas px-2 py-2 text-sm focus:outline-2 focus:outline-device"
           >
             {PII_TYPES.map((t) => (
               <option key={t} value={t}>
@@ -74,13 +74,13 @@ export function AddItemForm({ value, onChange }: Props) {
         <button
           type="submit"
           disabled={!value.trim()}
-          className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-device disabled:opacity-40"
+          className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-surface hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-device disabled:opacity-40"
         >
           Add
         </button>
       </div>
       {error && (
-        <p id="add-error" role="alert" className="text-sm text-red-700">
+        <p id="add-error" role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}

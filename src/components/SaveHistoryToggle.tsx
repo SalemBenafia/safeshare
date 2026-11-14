@@ -20,7 +20,7 @@ export function SaveHistoryToggle({ hint = true }: { hint?: boolean }) {
         aria-describedby={hint ? hintId : undefined}
         onClick={() => setSaveHistory(!on)}
         className={`relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-device ${
-          on ? "bg-device" : "bg-slate-300"
+          on ? "bg-device-fill" : "bg-slate-500"
         }`}
       >
         <span className="sr-only">Save history (masked text only)</span>

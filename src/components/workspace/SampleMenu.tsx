@@ -1,24 +1,17 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { useWorkspace } from "./WorkspaceProvider";
-
-const SAMPLES = [
-  { file: "sample-cv.txt", label: "CV (job seeker)" },
-  { file: "sample-medical-letter.txt", label: "Medical letter" },
-  { file: "sample-long-contract.txt", label: "Long contract (4,000+ characters)" },
-] as const;
+import { SAMPLES } from "@/lib/samples";
+import { useLoadSample } from "./useLoadSample";
 
 /** "Load sample" disclosure. Samples are static files with invented data. */
 export function SampleMenu({ disabled }: { disabled?: boolean }) {
-  const { state, dispatch } = useWorkspace();
+  const { load: loadSample, error } = useLoadSample();
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState("");
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const lastLoaded = useRef("");
 
   useEffect(() => {
     if (!open) return;
@@ -50,24 +43,9 @@ export function SampleMenu({ disabled }: { disabled?: boolean }) {
     }
   }
 
-  async function load(file: string) {
-    setError("");
-    const edited = state.text.trim() !== "" && state.text !== lastLoaded.current;
-    if (edited && !window.confirm("Replace your current text with the sample?")) {
-      close();
-      return;
-    }
-    try {
-      const res = await fetch(`/samples/${file}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      lastLoaded.current = text;
-      dispatch({ type: "SET_TEXT", text });
-      close();
-    } catch {
-      setError("Could not load the sample.");
-      close();
-    }
+  async function load(id: (typeof SAMPLES)[number]["id"]) {
+    close();
+    await loadSample(id);
   }
 
   return (
@@ -100,7 +78,7 @@ export function SampleMenu({ disabled }: { disabled?: boolean }) {
                   itemRefs.current[i] = el;
                 }}
                 type="button"
-                onClick={() => void load(s.file)}
+                onClick={() => void load(s.id)}
                 className="w-full rounded-md px-3 py-2 text-left text-sm text-ink hover:bg-canvas focus:bg-canvas"
               >
                 {s.label}
@@ -110,7 +88,7 @@ export function SampleMenu({ disabled }: { disabled?: boolean }) {
         </ul>
       )}
       {error && (
-        <p role="alert" className="mt-1 text-sm text-red-700">
+        <p role="alert" className="mt-1 text-sm text-danger">
           {error}
         </p>
       )}

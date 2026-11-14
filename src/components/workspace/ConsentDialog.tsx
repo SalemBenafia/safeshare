@@ -34,13 +34,13 @@ export function ConsentDialog() {
         e.preventDefault();
         answerConsent(false);
       }}
-      className="m-auto w-[min(48rem,calc(100vw-2rem))] rounded-2xl border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-ink/50"
+      className="m-auto w-[min(48rem,calc(100vw-2rem))] rounded-2xl border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/60"
     >
       {consentRequest && (
         <div className="space-y-4 p-6">
           <div className="space-y-1">
             <h2 id="consent-title" className="flex items-center gap-2 text-xl font-semibold">
-              <span aria-hidden="true" className="size-2.5 rounded-full bg-cloud" />
+              <span aria-hidden="true" className="size-2.5 rounded-full bg-cloud-fill" />
               Send masked text to the cloud?
             </h2>
             <p id="consent-desc" className="text-sm text-muted">
@@ -83,7 +83,7 @@ export function ConsentDialog() {
             <button
               type="button"
               onClick={() => answerConsent(true)}
-              className="rounded-lg bg-cloud px-4 py-2 font-medium text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cloud"
+              className="rounded-lg bg-cloud-fill px-4 py-2 font-medium text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cloud"
             >
               Send masked text to cloud
             </button>

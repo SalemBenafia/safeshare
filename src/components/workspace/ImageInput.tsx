@@ -103,7 +103,7 @@ export function ImageInput({ busy }: { busy: boolean }) {
       <p
         role={message?.kind === "error" ? "alert" : "status"}
         aria-live="polite"
-        className={`text-sm ${message ? "mt-2" : ""} ${message?.kind === "error" ? "text-red-700" : "text-device"}`}
+        className={`text-sm ${message ? "mt-2" : ""} ${message?.kind === "error" ? "text-danger" : "text-device"}`}
       >
         {message?.text}
       </p>

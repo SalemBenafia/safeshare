@@ -4,26 +4,88 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
+/*
+ * Design tokens. Meaning is fixed across the app:
+ *   device (green) = on-device, cloud (blue) = cloud, accent (orange) = highlights.
+ * "-fill" colours sit behind white text (same in light and dark, >= 4.5:1).
+ * Plain colours are for text, borders and icons; dark mode uses lighter shades for AA contrast.
+ */
 @theme {
-  /* Brand: on-device = green, cloud = blue, accent = orange. */
-  --color-device: #12805c;
+  --color-device: #0f7653; /* text green: >= 4.5:1 on white and on device-soft */
   --color-device-soft: #e7f4ee;
+  --color-device-fill: #12805c;
   --color-cloud: #1f5fd1;
   --color-cloud-soft: #e9f0fc;
+  --color-cloud-fill: #1f5fd1;
   --color-accent: #e8710a;
   --color-accent-soft: #fdf0e4;
+  --color-accent-ink: #9a4a00;
   --color-warn: #8a5a00;
   --color-warn-soft: #fdf6e3;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
 
-  /* Calm neutrals. */
   --color-ink: #1c2430;
   --color-muted: #5b6675;
   --color-line: #e3e7ec;
+  --color-line-strong: #8a94a3;
   --color-surface: #ffffff;
   --color-canvas: #f6f8fa;
+  --color-focus: #0f7653;
 }
 
-body {
-  background: var(--color-canvas);
-  color: var(--color-ink);
+:root {
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-device: #4cc38a;
+    --color-device-soft: #0f2e22;
+    --color-cloud: #7aa7ff;
+    --color-cloud-soft: #142540;
+    --color-accent: #f59a3c;
+    --color-accent-soft: #2e1d0b;
+    --color-accent-ink: #f8b26b;
+    --color-warn: #e6b35a;
+    --color-warn-soft: #2b2210;
+    --color-danger: #ff8f87;
+    --color-danger-soft: #3a1614;
+
+    --color-ink: #e6edf3;
+    --color-muted: #9aa6b2;
+    --color-line: #2a323c;
+    --color-line-strong: #6b7684;
+    --color-surface: #161b22;
+    --color-canvas: #0d1117;
+    --color-focus: #4cc38a;
+  }
+}
+
+@layer base {
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+  }
+
+  /* A visible focus ring on every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-device) 30%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

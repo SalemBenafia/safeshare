@@ -60,7 +60,7 @@ export function ReviewStep() {
         <button
           type="button"
           onClick={() => dispatch({ type: "GO_TO_STEP", step: 1 })}
-          className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-canvas"
+          className="rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-canvas"
         >
           Edit text
         </button>
@@ -110,11 +110,13 @@ export function ReviewStep() {
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line pt-4">
-        <p className="text-sm text-muted">Next: choose what the AI should do with the masked text.</p>
+        <p className="text-sm text-muted">
+          Highlighted text will be replaced by placeholders. Switch items off to keep them readable.
+        </p>
         <button
           type="button"
           onClick={() => dispatch({ type: "CONTINUE_TO_TASK" })}
-          className="rounded-lg bg-device px-5 py-2.5 font-medium text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-device"
+          className="rounded-lg bg-device-fill px-5 py-2.5 font-medium text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-device"
         >
           Continue to task
         </button>

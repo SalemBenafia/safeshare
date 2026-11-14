@@ -29,7 +29,7 @@ export function StepIndicator() {
               <span
                 aria-hidden="true"
                 className={`inline-flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
-                  current ? "bg-device text-white" : "bg-canvas text-muted ring-1 ring-line"
+                  current ? "bg-device-fill text-white" : "bg-canvas text-muted ring-1 ring-line"
                 }`}
               >
                 {n}

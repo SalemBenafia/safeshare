@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { Diagnostics } from "@/components/Diagnostics";
-import { PagePlaceholder } from "@/components/PagePlaceholder";
+import { ShieldIcon } from "@/components/ShieldIcon";
 import { TYPE_STYLES } from "@/components/workspace/piiStyles";
 import { TYPE_LABELS } from "@/lib/pii/labels";
 import { PII_TYPES, type PiiType } from "@/lib/pii/types";
 
-export const metadata: Metadata = { title: "About · SafeShare" };
+export const metadata: Metadata = { title: "About" };
 
 const TYPE_DESCRIPTIONS: Record<PiiType, string> = {
   PERSON: "Names of people, e.g. Leila Mansour.",
@@ -34,26 +34,112 @@ function Code({ children }: { children: string }) {
   );
 }
 
+const RUNS_WHERE: { step: string; where: string; place: "device" | "both" | "cloud" | "storage" }[] = [
+  { step: "Reading a photo of a document", where: "On this device (Gemini Nano)", place: "device" },
+  { step: "Finding personal data", where: "On this device (Gemini Nano + pattern scanner)", place: "device" },
+  { step: "Replacing it with placeholders", where: "On this device", place: "device" },
+  { step: "Leak check before any AI call", where: "On this device", place: "device" },
+  { step: "The task (summary, rewrite, translation, question)", where: "On this device when possible, otherwise the cloud with masked text only", place: "both" },
+  { step: "Putting real values back in the answer", where: "On this device", place: "device" },
+  { step: "History (optional, off by default)", where: "Your private Firebase space, masked text only", place: "storage" },
+];
+
+const SECTIONS = [
+  ["how-it-works", "How it works"],
+  ["promises", "Privacy promises"],
+  ["what-safeshare-hides", "What SafeShare hides"],
+  ["enable-gemini-nano", "Enable Gemini Nano"],
+  ["diagnostics", "Diagnostics"],
+] as const;
+
+function Where({ place, children }: { place: (typeof RUNS_WHERE)[number]["place"]; children: string }) {
+  const tone =
+    place === "device"
+      ? "bg-device-soft text-device"
+      : place === "cloud"
+        ? "bg-cloud-soft text-cloud"
+        : place === "both"
+          ? "bg-canvas text-ink"
+          : "bg-canvas text-muted";
+  return <span className={`inline-block rounded-md px-2 py-0.5 text-sm font-medium ${tone}`}>{children}</span>;
+}
+
 export default function AboutPage() {
   return (
-    <div className="space-y-12">
-      <PagePlaceholder
-        title="About"
-        intro="How SafeShare works, what runs where, and how to enable Gemini Nano in Chrome."
-      >
-        <ul className="max-w-2xl space-y-2">
+    <div className="space-y-10">
+      <header className="space-y-4">
+        <h1 className="text-3xl font-semibold tracking-tight">About SafeShare</h1>
+        <p className="max-w-2xl text-lg text-muted">
+          SafeShare lets you use cloud AI on private documents. Personal data is found and hidden on
+          your device first, so the cloud only ever sees placeholders.
+        </p>
+        <nav aria-label="On this page">
+          <ul className="flex flex-wrap gap-2 text-sm">
+            {SECTIONS.map(([id, label]) => (
+              <li key={id}>
+                <a href={`#${id}`} className="block rounded-full border border-line-strong px-3 py-1 text-ink hover:bg-surface">
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </header>
+
+      <section id="how-it-works" aria-labelledby="how-it-works-title" className="scroll-mt-6 space-y-4 rounded-xl border border-line bg-surface p-6">
+        <h2 id="how-it-works-title" className="text-2xl font-semibold tracking-tight">
+          How it works: what runs where
+        </h2>
+        <p className="max-w-2xl text-muted">
+          <span className="font-medium text-device">Green</span> means on this device.{" "}
+          <span className="font-medium text-cloud">Blue</span> means the cloud. Every answer shows a
+          badge with where it ran and why.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[36rem] text-left text-sm">
+            <thead>
+              <tr className="border-b border-line text-muted">
+                <th scope="col" className="py-2 pr-4 font-medium">Step</th>
+                <th scope="col" className="py-2 font-medium">Where it runs</th>
+              </tr>
+            </thead>
+            <tbody>
+              {RUNS_WHERE.map((row) => (
+                <tr key={row.step} className="border-b border-line last:border-0">
+                  <th scope="row" className="py-2.5 pr-4 font-normal">{row.step}</th>
+                  <td className="py-2.5">
+                    <Where place={row.place}>{row.where}</Where>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="max-w-2xl text-sm text-muted">
+          Tasks go to the cloud when the document is long, when you translate into French or Arabic,
+          or when on-device AI is not available. SafeShare asks before the first cloud call of a session
+          and shows exactly what will be sent.
+        </p>
+      </section>
+
+      <section id="promises" aria-labelledby="promises-title" className="scroll-mt-6 space-y-4 rounded-xl border border-line bg-surface p-6">
+        <h2 id="promises-title" className="text-2xl font-semibold tracking-tight">
+          Privacy promises
+        </h2>
+        <ul className="grid gap-3 md:grid-cols-3">
           {PROMISES.map((p) => (
-            <li key={p} className="rounded-lg border border-line bg-surface px-4 py-3">
-              {p}
+            <li key={p} className="flex gap-3 rounded-lg border border-device/40 bg-device-soft p-4">
+              <ShieldIcon className="mt-0.5 size-5 shrink-0 text-device" />
+              <span>{p}</span>
             </li>
           ))}
         </ul>
-      </PagePlaceholder>
+      </section>
 
       <section
         id="what-safeshare-hides"
         aria-labelledby="what-safeshare-hides-title"
-        className="space-y-4 rounded-xl border border-line bg-surface p-6"
+        className="scroll-mt-6 space-y-4 rounded-xl border border-line bg-surface p-6"
       >
         <h2 id="what-safeshare-hides-title" className="text-2xl font-semibold tracking-tight">
           What SafeShare hides
@@ -133,7 +219,7 @@ export default function AboutPage() {
       <section
         id="diagnostics"
         aria-labelledby="diagnostics-title"
-        className="space-y-4 rounded-xl border border-line bg-surface p-6"
+        className="scroll-mt-6 space-y-4 rounded-xl border border-line bg-surface p-6"
       >
         <h2 id="diagnostics-title" className="text-2xl font-semibold tracking-tight">
           Diagnostics

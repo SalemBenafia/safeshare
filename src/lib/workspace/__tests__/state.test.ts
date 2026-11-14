@@ -249,6 +249,47 @@ describe("workspaceReducer: tasks and results", () => {
   });
 });
 
+describe("workspaceReducer: undo", () => {
+  it("undoes an item toggle", () => {
+    const s = scanned();
+    const off = reduce(s, { type: "TOGGLE_ITEM", id: s.items[0].id });
+    expect(off.lastChange?.message).toBe("“rim@example.com” will be shown to the AI.");
+    const back = reduce(off, { type: "UNDO" });
+    expect(back.items).toEqual(s.items);
+    expect(back.lastChange).toBeNull();
+  });
+
+  it("undoes a group toggle", () => {
+    let s = reduce(scanned(), { type: "ADD_ITEM", text: "Rim Sassi", itemType: "PERSON" });
+    const before = s.items;
+    s = reduce(s, { type: "SET_TYPE_ENABLED", itemType: "EMAIL", enabled: false });
+    expect(s.lastChange?.message).toBe("All emails will be shown to the AI.");
+    expect(reduce(s, { type: "UNDO" }).items).toEqual(before);
+  });
+
+  it("undoes removing a user item", () => {
+    let s = reduce(scanned(), { type: "ADD_ITEM", text: "Rim Sassi", itemType: "PERSON" });
+    const before = s.items;
+    s = reduce(s, { type: "REMOVE_ITEM", id: s.items.find((i) => i.origin === "user")!.id });
+    expect(s.lastChange?.message).toBe("Removed “Rim Sassi”.");
+    expect(reduce(s, { type: "UNDO" }).items).toEqual(before);
+  });
+
+  it("clears the undo when moving on to the task step", () => {
+    let s = reduce(scanned(), { type: "TOGGLE_ITEM", id: scanned().items[0].id });
+    s = reduce(s, { type: "CONTINUE_TO_TASK" });
+    expect(s.lastChange).toBeNull();
+  });
+
+  it("can be dismissed, and other changes clear it", () => {
+    const s = reduce(scanned(), { type: "TOGGLE_ITEM", id: scanned().items[0].id });
+    expect(reduce(s, { type: "DISMISS_UNDO" }).lastChange).toBeNull();
+    expect(reduce(s, { type: "ADD_ITEM", text: "Rim Sassi", itemType: "PERSON" }).lastChange).toBeNull();
+    expect(reduce(s, { type: "SET_TEXT", text: "Other." }).lastChange).toBeNull();
+    expect(reduce(scanned(), { type: "UNDO" })).toEqual(scanned());
+  });
+});
+
 describe("validateNewItem", () => {
   it("accepts a phrase that occurs as whole words", () => {
     expect(validateNewItem(TEXT, "Rim Sassi")).toBeNull();

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PlaceholderText } from "@/components/PlaceholderText";
 import { SaveHistoryToggle, useSaveHistory } from "@/components/SaveHistoryToggle";
+import { Skeleton } from "@/components/Skeleton";
 import { SourceBadge } from "@/components/SourceBadge";
 import { useSettings } from "@/hooks/useSettings";
 import { clearAll, computeStats, deleteResult, listResults, type HistoryEntry } from "@/lib/history";
@@ -131,7 +132,15 @@ function HistoryList() {
   }
 
   if (load.status === "loading") {
-    return <p className="text-sm text-muted" aria-busy="true">Loading your saved results…</p>;
+    return (
+      <ul className="space-y-4" aria-busy="true">
+        {[0, 1].map((i) => (
+          <li key={i} className="rounded-xl border border-line bg-surface p-5">
+            <Skeleton lines={3} label={i === 0 ? "Loading your saved results…" : ""} />
+          </li>
+        ))}
+      </ul>
+    );
   }
   if (load.status === "error") {
     return (
@@ -155,7 +164,7 @@ function HistoryList() {
           <button
             type="button"
             onClick={() => void removeAll()}
-            className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-canvas focus-visible:outline-2 focus-visible:outline-device"
+            className="rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-canvas"
           >
             Delete all
           </button>

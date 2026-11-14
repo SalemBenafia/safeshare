@@ -37,7 +37,17 @@ export function TaskStep() {
   const busy = state.run.status === "running" || consentRequest !== null;
 
   return (
-    <section aria-labelledby="task-title" className="space-y-6">
+    <section
+      aria-labelledby="task-title"
+      className="space-y-6"
+      onKeyDown={(e) => {
+        // Ctrl+Enter (or Cmd+Enter) runs the task from anywhere in this step.
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && canRun && !busy) {
+          e.preventDefault();
+          void runCurrentTask();
+        }
+      }}
+    >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 id="task-title" ref={headingRef} tabIndex={-1} className="text-2xl font-semibold tracking-tight outline-none">
@@ -48,7 +58,7 @@ export function TaskStep() {
         <button
           type="button"
           onClick={() => dispatch({ type: "GO_TO_STEP", step: 2 })}
-          className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-canvas"
+          className="rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-canvas"
         >
           Back to review
         </button>
@@ -114,7 +124,7 @@ export function TaskStep() {
             id="task-lang"
             value={task.language}
             onChange={(e) => dispatch({ type: "SET_TASK", patch: { language: e.target.value as TargetLanguage } })}
-            className="block w-full rounded-md border border-line bg-surface px-3 py-2 focus:outline-2 focus:outline-device"
+            className="block w-full rounded-md border border-line-strong bg-surface px-3 py-2 focus:outline-2 focus:outline-device"
           >
             {(Object.keys(LANGUAGE_NAMES) as TargetLanguage[]).map((l) => (
               <option key={l} value={l}>
@@ -137,7 +147,7 @@ export function TaskStep() {
             rows={3}
             dir="auto"
             aria-describedby="task-question-hint"
-            className="block w-full rounded-md border border-line bg-surface p-3 focus:outline-2 focus:outline-device"
+            className="block w-full rounded-md border border-line-strong bg-surface p-3 focus:outline-2 focus:outline-device"
           />
           <p id="task-question-hint" className="text-sm text-muted">
             Names and details already found are masked automatically. Please don&apos;t type new
@@ -151,12 +161,20 @@ export function TaskStep() {
           type="button"
           onClick={() => void runCurrentTask()}
           disabled={!canRun || busy}
-          className="rounded-lg bg-device px-6 py-3 font-medium text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-device disabled:opacity-50"
+          aria-keyshortcuts="Control+Enter Meta+Enter"
+          className={`rounded-lg px-6 py-3 font-medium text-white shadow-sm hover:opacity-90 disabled:opacity-50 ${
+            route?.target === "cloud" ? "bg-cloud-fill" : "bg-device-fill"
+          }`}
         >
-          Run task
+          {route?.target === "cloud" ? "Run in the cloud" : route?.target === "hybrid" ? "Run on this device" : "Run task"}
         </button>
+        <kbd className="hidden rounded border border-line-strong px-1.5 py-0.5 font-mono text-xs text-muted sm:inline">
+          Ctrl + Enter
+        </kbd>
         <p className="text-sm" aria-live="polite">
-          {route === null ? (
+          {!canRun ? (
+            <span className="text-muted">Type a question first.</span>
+          ) : route === null ? (
             <span className="text-muted">Checking where this task can run…</span>
           ) : route.target === "hybrid" ? (
             <span className="text-device">Will run on this device · {route.reason}</span>

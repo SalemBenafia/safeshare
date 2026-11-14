@@ -15,7 +15,7 @@ function Toggle({ item }: { item: PiiItem }) {
       aria-label={`Mask ${item.text} (${TYPE_LABELS[item.type]})`}
       onClick={() => dispatch({ type: "TOGGLE_ITEM", id: item.id })}
       className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-device ${
-        item.enabled ? "bg-device" : "bg-slate-300"
+        item.enabled ? "bg-device-fill" : "bg-slate-500"
       }`}
     >
       <span

@@ -71,7 +71,7 @@ export function Playground() {
     <div className="space-y-8">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Playground</h1>
-        <p className="rounded-md bg-accent-soft px-3 py-2 text-sm text-accent">
+        <p className="rounded-md bg-accent-soft px-3 py-2 text-sm text-accent-ink">
           Dev only: this text is sent as-is, without masking. Use invented data only.
         </p>
       </header>
@@ -82,7 +82,7 @@ export function Playground() {
           type="button"
           onClick={prepare}
           disabled={prep === "preparing"}
-          className="rounded-lg bg-device px-4 py-2 font-medium text-white hover:opacity-90 disabled:opacity-50"
+          className="rounded-lg bg-device-fill px-4 py-2 font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
           {prep === "preparing" ? "Preparing…" : "Prepare on-device AI"}
         </button>
@@ -113,14 +113,14 @@ export function Playground() {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           rows={5}
-          className="w-full rounded-lg border border-line bg-canvas p-3 text-sm focus:outline-2 focus:outline-device"
+          className="w-full rounded-lg border border-line-strong bg-canvas p-3 text-sm focus:outline-2 focus:outline-device"
         />
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
             onClick={() => ask("device")}
             disabled={busy !== null || !prompt.trim()}
-            className="rounded-lg bg-device px-4 py-2 font-medium text-white hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-device-fill px-4 py-2 font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
             {busy === "device" ? "Asking…" : "Ask (prefer device)"}
           </button>
@@ -128,7 +128,7 @@ export function Playground() {
             type="button"
             onClick={() => ask("cloud")}
             disabled={busy !== null || !prompt.trim()}
-            className="rounded-lg bg-cloud px-4 py-2 font-medium text-white hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-cloud-fill px-4 py-2 font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
             {busy === "cloud" ? "Asking…" : "Ask (cloud only)"}
           </button>
@@ -141,7 +141,7 @@ export function Playground() {
           {source && <SourceBadge source={source} />}
         </div>
         {error ? (
-          <p className="text-sm text-red-700">Error: {error}</p>
+          <p className="text-sm text-danger">Error: {error}</p>
         ) : (
           <p className="min-h-12 whitespace-pre-wrap text-sm">
             {answer || <span className="text-muted">No answer yet.</span>}

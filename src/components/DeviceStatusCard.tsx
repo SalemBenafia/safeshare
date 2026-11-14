@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Skeleton } from "@/components/Skeleton";
 import { useDeviceStatus } from "@/hooks/useDeviceStatus";
 
 const base = "rounded-xl border p-5";
@@ -10,13 +11,13 @@ export function DeviceStatusCard() {
   const { status, progress, error, prepare } = useDeviceStatus();
 
   const errorLine = error ? (
-    <p className="mt-2 text-sm text-red-700">Could not prepare the model: {error}</p>
+    <p className="mt-2 text-sm text-danger">Could not prepare the model: {error}</p>
   ) : null;
 
   if (status === "checking") {
     return (
       <div className={`${base} border-line bg-surface`} aria-busy="true">
-        <p className="text-sm text-muted">Checking this device for private AI…</p>
+        <Skeleton lines={2} label="Checking this device for private AI…" />
       </div>
     );
   }
@@ -25,7 +26,7 @@ export function DeviceStatusCard() {
     return (
       <div className={`${base} border-device/30 bg-device-soft`} role="status">
         <p className="flex items-center gap-2 font-medium text-device">
-          <span aria-hidden="true" className="size-2.5 rounded-full bg-device" />
+          <span aria-hidden="true" className="size-2.5 rounded-full bg-device-fill" />
           Private AI is ready on this device
         </p>
         <p className="mt-1 text-sm text-muted">
@@ -45,7 +46,7 @@ export function DeviceStatusCard() {
         <button
           type="button"
           onClick={() => void prepare()}
-          className="mt-3 rounded-lg bg-device px-4 py-2 font-medium text-white hover:opacity-90"
+          className="mt-3 rounded-lg bg-device-fill px-4 py-2 font-medium text-white hover:opacity-90"
         >
           Download the private AI model (one time, a few GB)
         </button>

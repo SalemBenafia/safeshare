@@ -6,6 +6,7 @@ import { SaveHistoryToggle } from "@/components/SaveHistoryToggle";
 import { SourceBadge } from "@/components/SourceBadge";
 import { useSettings } from "@/hooks/useSettings";
 import type { HistorySaveState } from "@/lib/workspace/state";
+import { Skeleton } from "@/components/Skeleton";
 import { PrivacyReport } from "./PrivacyReport";
 import { useWorkspace } from "./WorkspaceProvider";
 
@@ -79,7 +80,7 @@ export function ResultStep() {
             type="button"
             onClick={() => dispatch({ type: "GO_TO_STEP", step: 3 })}
             disabled={run.status === "running"}
-            className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-canvas disabled:opacity-50"
+            className="rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-canvas disabled:opacity-50"
           >
             New task
           </button>
@@ -130,7 +131,7 @@ export function ResultStep() {
               tabIndex={0}
               className="min-h-40 whitespace-pre-wrap rounded-xl border border-line bg-surface p-5 text-[16px] leading-7 text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-device"
             >
-              {text || <span className="text-muted">Waiting for the first words…</span>}
+              {text || <Skeleton lines={4} label="" />}
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -138,15 +139,15 @@ export function ResultStep() {
                 type="button"
                 onClick={() => void copy()}
                 disabled={!result}
-                className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-canvas disabled:opacity-50"
+                className="rounded-lg bg-device-fill px-4 py-2 text-sm font-medium text-white shadow-sm hover:opacity-90 disabled:opacity-50"
               >
-                {copied ? "Copied" : "Copy"}
+                {copied ? "Copied ✓" : "Copy answer"}
               </button>
               <button
                 type="button"
                 onClick={download}
                 disabled={!result}
-                className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-canvas disabled:opacity-50"
+                className="rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-canvas disabled:opacity-50"
               >
                 Download .txt
               </button>

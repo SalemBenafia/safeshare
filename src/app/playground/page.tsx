@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Playground } from "@/components/dev/Playground";
 
 export const metadata: Metadata = {
-  title: "Playground · SafeShare",
+  title: "Playground",
   robots: { index: false, follow: false },
 };
 
