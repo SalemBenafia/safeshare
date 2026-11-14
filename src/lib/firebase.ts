@@ -12,6 +12,11 @@ function assertBrowser(fn: string): void {
   }
 }
 
+function isLocalhost(): boolean {
+  const host = globalThis.location?.hostname ?? "";
+  return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+}
+
 function readConfig(): FirebaseOptions {
   // Each variable is referenced literally so Next.js can inline it at build time.
   const config: Record<string, string | undefined> = {
@@ -47,9 +52,11 @@ export function getFirebaseApp(): FirebaseApp {
 
   const created = initializeApp(readConfig());
 
-  if (process.env.NODE_ENV === "development") {
-    // Must be set BEFORE initializeAppCheck. The SDK then prints a debug token
-    // in the browser console; register it in Firebase console > App Check.
+  // Development only, and only on localhost. In a production build NODE_ENV is
+  // inlined as "production", so this whole block is removed by the compiler.
+  // Must be set BEFORE initializeAppCheck; the SDK then prints a debug token in
+  // the browser console, to register in Firebase console > App Check.
+  if (process.env.NODE_ENV === "development" && isLocalhost()) {
     self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
   }
   initializeAppCheck(created, {
