@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Diagnostics } from "@/components/Diagnostics";
 import { PagePlaceholder } from "@/components/PagePlaceholder";
 import { TYPE_STYLES } from "@/components/workspace/piiStyles";
 import { TYPE_LABELS } from "@/lib/pii/labels";
@@ -127,6 +128,21 @@ export default function AboutPage() {
         <p className="max-w-2xl text-sm text-muted">
           Chrome blocks links to <Code>chrome://</Code> pages, so copy and paste them.
         </p>
+      </section>
+
+      <section
+        id="diagnostics"
+        aria-labelledby="diagnostics-title"
+        className="space-y-4 rounded-xl border border-line bg-surface p-6"
+      >
+        <h2 id="diagnostics-title" className="text-2xl font-semibold tracking-tight">
+          Diagnostics
+        </h2>
+        <p className="max-w-2xl text-sm text-muted">
+          The active settings, whether on-device AI is ready, and where the last answer ran. No
+          document text is shown here.
+        </p>
+        <Diagnostics />
       </section>
     </div>
   );

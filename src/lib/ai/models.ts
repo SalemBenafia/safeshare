@@ -11,10 +11,7 @@ import {
 } from "firebase/ai";
 import { getFirebaseApp } from "../firebase";
 import { PII_TYPES } from "../pii/types";
-import { DEFAULT_SETTINGS } from "../settings";
-
-/** Cloud model name. Will come from Remote Config (`cloud_model`) in a later phase. */
-const CLOUD_MODEL = DEFAULT_SETTINGS.cloud_model;
+import { getSettings } from "../settings";
 
 /**
  * Expected inputs/outputs for Gemini Nano (same as the Firebase SDK defaults:
@@ -43,8 +40,9 @@ export const PII_SCAN_SCHEMA = Schema.object({
 let ai: AI | undefined;
 let scan: GenerativeModel | undefined;
 let imageRead: GenerativeModel | undefined;
-let hybrid: GenerativeModel | undefined;
-let cloud: GenerativeModel | undefined;
+/** Task models are tied to a cloud model name (Remote Config `cloud_model`). */
+let hybrid: { model: GenerativeModel; cloudModel: string } | undefined;
+let cloud: { model: GenerativeModel; cloudModel: string } | undefined;
 
 function getAIInstance(): AI {
   ai ??= getAI(getFirebaseApp(), { backend: new GoogleAIBackend() });
@@ -80,21 +78,39 @@ export function imageReadModel(): GenerativeModel {
   return imageRead;
 }
 
-/** Task model for short work: PREFER_ON_DEVICE. Send masked text only. */
+/**
+ * Task model for short work: PREFER_ON_DEVICE. Send masked text only.
+ * Recreated if Remote Config changes `cloud_model`.
+ */
 export function hybridModel(): GenerativeModel {
-  hybrid ??= getGenerativeModel(getAIInstance(), {
-    mode: InferenceMode.PREFER_ON_DEVICE,
-    onDeviceParams: { createOptions: DEVICE_CREATE_OPTIONS },
-    inCloudParams: { model: CLOUD_MODEL },
-  });
-  return hybrid;
+  const name = getSettings().cloud_model;
+  if (hybrid?.cloudModel !== name) {
+    hybrid = {
+      cloudModel: name,
+      model: getGenerativeModel(getAIInstance(), {
+        mode: InferenceMode.PREFER_ON_DEVICE,
+        onDeviceParams: { createOptions: DEVICE_CREATE_OPTIONS },
+        inCloudParams: { model: name },
+      }),
+    };
+  }
+  return hybrid.model;
 }
 
-/** Task model for cloud work: ONLY_IN_CLOUD. Send masked text only. */
+/**
+ * Task model for cloud work: ONLY_IN_CLOUD. Send masked text only.
+ * Recreated if Remote Config changes `cloud_model`.
+ */
 export function cloudModel(): GenerativeModel {
-  cloud ??= getGenerativeModel(getAIInstance(), {
-    mode: InferenceMode.ONLY_IN_CLOUD,
-    inCloudParams: { model: CLOUD_MODEL },
-  });
-  return cloud;
+  const name = getSettings().cloud_model;
+  if (cloud?.cloudModel !== name) {
+    cloud = {
+      cloudModel: name,
+      model: getGenerativeModel(getAIInstance(), {
+        mode: InferenceMode.ONLY_IN_CLOUD,
+        inCloudParams: { model: name },
+      }),
+    };
+  }
+  return cloud.model;
 }

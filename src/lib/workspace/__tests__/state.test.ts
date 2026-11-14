@@ -207,6 +207,21 @@ describe("workspaceReducer: tasks and results", () => {
     expect(reduce(s, { type: "RUN_ERROR", runId: old, error: { kind: "unknown", title: "", message: "" } })).toBe(s);
   });
 
+  it("tracks saving to history for the current run only", () => {
+    let s = finished();
+    expect(s.run.history.status).toBe("off");
+    s = reduce(s, { type: "RUN_HISTORY", runId: s.run.runId, status: "saving" });
+    expect(s.run.history).toEqual({ status: "saving", message: "" });
+    s = reduce(s, { type: "RUN_HISTORY", runId: s.run.runId, status: "blocked", message: "Not saved" });
+    expect(s.run.history).toEqual({ status: "blocked", message: "Not saved" });
+    expect(reduce(s, { type: "RUN_HISTORY", runId: s.run.runId - 1, status: "saved" })).toBe(s);
+  });
+
+  it("ignores history updates for a run that is not done", () => {
+    const s = reduce(atTask(), { type: "RUN_START", route });
+    expect(reduce(s, { type: "RUN_HISTORY", runId: s.run.runId, status: "saved" })).toBe(s);
+  });
+
   it("records a friendly error", () => {
     let s = reduce(atTask(), { type: "RUN_START", route });
     const error = { kind: "offline", title: "Offline", message: "Try later" } as const;

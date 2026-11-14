@@ -1,9 +1,8 @@
 // Browser-only. Lazy singletons for the Firebase app and services (SPEC §5).
 import { initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
-import type { Auth } from "firebase/auth";
-import type { Firestore } from "firebase/firestore";
-import { notImplemented } from "./notImplemented";
+import { getAuth, signInAnonymously, type Auth, type User } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
 
 let app: FirebaseApp | undefined;
 
@@ -62,12 +61,30 @@ export function getFirebaseApp(): FirebaseApp {
   return app;
 }
 
+let db: Firestore | undefined;
+let auth: Auth | undefined;
+
 /** Firestore, used only when "Save history" is on. */
 export function getDb(): Firestore {
-  return notImplemented("getDb");
+  assertBrowser("getDb");
+  db ??= getFirestore(getFirebaseApp());
+  return db;
 }
 
-/** Auth client for anonymous sign-in. */
+/** Auth client. Sign-in happens only through ensureSignedIn(), when history is used. */
 export function getAuthClient(): Auth {
-  return notImplemented("getAuthClient");
+  assertBrowser("getAuthClient");
+  auth ??= getAuth(getFirebaseApp());
+  return auth;
+}
+
+/**
+ * Returns the current user, signing in anonymously the first time it is needed.
+ * Waits for Firebase to restore a previous session first, so the same anonymous
+ * user (and their history) is reused on this browser.
+ */
+export async function ensureSignedIn(): Promise<User> {
+  const client = getAuthClient();
+  await client.authStateReady();
+  return client.currentUser ?? (await signInAnonymously(client)).user;
 }

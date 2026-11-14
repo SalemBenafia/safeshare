@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DEFAULT_SETTINGS } from "@/lib/settings";
+import { useSettings } from "@/hooks/useSettings";
 import { ImageInput } from "./ImageInput";
 import { SampleMenu } from "./SampleMenu";
 import { ScanStatus } from "./ScanStatus";
@@ -9,6 +9,7 @@ import { useWorkspace } from "./WorkspaceProvider";
 
 export function InputStep() {
   const { state, dispatch, runScan } = useWorkspace();
+  const settings = useSettings();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const scanning = state.scan.status === "scanning";
   const chars = state.text.length;
@@ -52,7 +53,7 @@ export function InputStep() {
         />
         <p id="doc-count" className="mt-1 text-sm text-muted">
           {chars.toLocaleString("en")} {chars === 1 ? "character" : "characters"}
-          {chars > DEFAULT_SETTINGS.device_max_chars &&
+          {chars > settings.device_max_chars &&
             " · Long document: some tasks may use the cloud later (masked text only)."}
         </p>
       </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSettings } from "@/hooks/useSettings";
 
 const NAV = [
   { href: "/", label: "Home" },
@@ -12,6 +13,8 @@ const NAV = [
 
 export function Header() {
   const pathname = usePathname();
+  const { history_enabled: historyEnabled } = useSettings();
+  const links = NAV.filter((l) => historyEnabled || l.href !== "/history/");
 
   return (
     <header className="border-b border-line bg-surface">
@@ -21,7 +24,7 @@ export function Header() {
         </Link>
         <nav aria-label="Main">
           <ul className="flex gap-1 text-sm">
-            {NAV.map(({ href, label }) => {
+            {links.map(({ href, label }) => {
               const active =
                 href === "/" ? pathname === "/" : pathname.startsWith(href.slice(0, -1));
               return (

@@ -24,6 +24,12 @@ export interface TaskState {
   question: string;
 }
 
+export interface HistorySaveState {
+  /** "off": history not enabled for this run. */
+  status: "off" | "saving" | "saved" | "blocked" | "error";
+  message: string;
+}
+
 export interface RunState {
   status: "idle" | "running" | "done" | "error";
   runId: number;
@@ -32,6 +38,7 @@ export interface RunState {
   partial: string;
   result: TaskResult | null;
   error: FriendlyError | null;
+  history: HistorySaveState;
 }
 
 export interface WorkspaceState {
@@ -53,6 +60,7 @@ const idleRun: RunState = {
   partial: "",
   result: null,
   error: null,
+  history: { status: "off", message: "" },
 };
 
 export const initialState: WorkspaceState = {
@@ -82,7 +90,8 @@ export type WorkspaceAction =
   | { type: "RUN_START"; route: Route }
   | { type: "RUN_UPDATE"; runId: number; text: string }
   | { type: "RUN_SUCCESS"; runId: number; result: TaskResult }
-  | { type: "RUN_ERROR"; runId: number; error: FriendlyError };
+  | { type: "RUN_ERROR"; runId: number; error: FriendlyError }
+  | { type: "RUN_HISTORY"; runId: number; status: HistorySaveState["status"]; message?: string };
 
 /** Returns an error message, or null if `value` can be added as an item. */
 export function validateNewItem(text: string, value: string): string | null {
@@ -250,5 +259,12 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
     case "RUN_ERROR":
       if (action.runId !== state.run.runId) return state;
       return { ...state, run: { ...state.run, status: "error", error: action.error } };
+
+    case "RUN_HISTORY":
+      if (action.runId !== state.run.runId || state.run.status !== "done") return state;
+      return {
+        ...state,
+        run: { ...state.run, history: { status: action.status, message: action.message ?? "" } },
+      };
   }
 }

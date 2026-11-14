@@ -1,13 +1,40 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { SaveHistoryToggle } from "@/components/SaveHistoryToggle";
 import { SourceBadge } from "@/components/SourceBadge";
+import { useSettings } from "@/hooks/useSettings";
+import type { HistorySaveState } from "@/lib/workspace/state";
 import { PrivacyReport } from "./PrivacyReport";
 import { useWorkspace } from "./WorkspaceProvider";
+
+function HistoryStatus({ status, message }: HistorySaveState) {
+  if (status === "off") return null;
+  const text =
+    status === "saving" ? (
+      "Saving the masked result to history…"
+    ) : status === "saved" ? (
+      <>
+        Saved to <Link href="/history/" className="underline underline-offset-2">history</Link> (masked text only).
+      </>
+    ) : (
+      message
+    );
+  return (
+    <p
+      role={status === "blocked" || status === "error" ? "alert" : "status"}
+      className={`text-sm ${status === "saved" ? "text-device" : status === "saving" ? "text-muted" : "text-warn"}`}
+    >
+      {text}
+    </p>
+  );
+}
 
 export function ResultStep() {
   const { state, dispatch } = useWorkspace();
   const { run } = state;
+  const { history_enabled: historyEnabled } = useSettings();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [copied, setCopied] = useState(false);
 
@@ -127,9 +154,15 @@ export function ResultStep() {
                 {copied ? "Answer copied to the clipboard." : ""}
               </span>
             </div>
+            <HistoryStatus status={run.history.status} message={run.history.message} />
           </div>
 
-          <aside aria-label="Privacy report">
+          <aside aria-label="Privacy report" className="space-y-4">
+            {historyEnabled && (
+              <div className="rounded-xl border border-line bg-surface p-4">
+                <SaveHistoryToggle hint={false} />
+              </div>
+            )}
             {result ? (
               <PrivacyReport items={state.items} usedAI={state.scan.usedAI} result={result} />
             ) : (

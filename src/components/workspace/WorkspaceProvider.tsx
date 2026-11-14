@@ -14,11 +14,15 @@ import {
 } from "react";
 import { getDeviceStatus } from "@/lib/ai/device";
 import { grantCloudConsent, hasCloudConsent } from "@/lib/consent";
+import { prepareHistoryRecord, saveResult } from "@/lib/history";
+import { isSaveHistoryOn } from "@/lib/historySetting";
 import { leakCheck, mask, maskWithMap } from "@/lib/pii/mask";
 import { scanDocument } from "@/lib/pii/scan";
-import { DEFAULT_SETTINGS } from "@/lib/settings";
+import { recordLastAnswer } from "@/lib/diagnostics";
+import { getSettings } from "@/lib/settings";
 import { friendlyError } from "@/lib/tasks/errors";
 import { buildPrompt } from "@/lib/tasks/prompts";
+import { LeakError } from "@/lib/tasks/leak-error";
 import { pickRoute } from "@/lib/tasks/router";
 import { runTask } from "@/lib/tasks/run";
 import type { TaskOptions } from "@/lib/tasks/types";
@@ -64,7 +68,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "SCAN_START" });
     try {
       const status = await getDeviceStatus();
-      const result = await scanDocument(text, status, DEFAULT_SETTINGS);
+      const result = await scanDocument(text, status, getSettings());
       dispatch({ type: "SCAN_SUCCESS", runId, ...result });
     } catch (err) {
       dispatch({
@@ -100,7 +104,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       question: s.task.kind === "ask" ? maskWithMap(s.task.question.trim(), map) : undefined,
     };
     const status = await getDeviceStatus();
-    const route = pickRoute({ kind: s.task.kind, options }, masked, DEFAULT_SETTINGS, status);
+    const route = pickRoute({ kind: s.task.kind, options }, masked, getSettings(), status);
 
     if (route.target === "cloud" && !hasCloudConsent()) {
       let prompt = "";
@@ -130,6 +134,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         onUpdate: (text) => dispatch({ type: "RUN_UPDATE", runId, text }),
       });
       dispatch({ type: "RUN_SUCCESS", runId, result });
+      recordLastAnswer(result.source, result.reason);
+
+      // Optional history: masked text only, refused if anything would leak.
+      if (getSettings().history_enabled && isSaveHistoryOn()) {
+        dispatch({ type: "RUN_HISTORY", runId, status: "saving" });
+        try {
+          await saveResult(prepareHistoryRecord(s.text, s.items, s.task.kind, result));
+          dispatch({ type: "RUN_HISTORY", runId, status: "saved" });
+        } catch (err) {
+          dispatch(
+            err instanceof LeakError
+              ? { type: "RUN_HISTORY", runId, status: "blocked", message: "Not saved: personal data would have been stored." }
+              : { type: "RUN_HISTORY", runId, status: "error", message: friendlyError(err).message },
+          );
+        }
+      }
     } catch (err) {
       dispatch({ type: "RUN_ERROR", runId, error: friendlyError(err) });
     }

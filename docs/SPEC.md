@@ -75,7 +75,7 @@ Not personal data, never items: plain years ("2026"), durations ("thirty days"),
 ## 8. Data model (Firestore; only when "Save history" is ON, which is OFF by default)
 `users/{uid}/history/{id}`: `{ createdAt, task, maskedInput (max 20,000 chars), maskedOutput, itemCounts: { [type]: number }, source, reason }`
 
-Never stored: raw text, images, the placeholder map, or real values.
+Never stored: raw text, images, the placeholder map, or real values. The stored input and answer mask **every** detected item, including items the user chose to show to the AI (for example dates), using one shared set of placeholders. `leakCheck()` runs on both before saving, and the save is refused if anything leaks. Sign-in is anonymous and happens only when history is used; the "Save history" setting is kept in `localStorage`.
 
 ## 9. Remote Config parameters (with in-app defaults)
 | Key | Type | Default |

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useDeviceStatus } from "@/hooks/useDeviceStatus";
 import { mask } from "@/lib/pii/mask";
-import { DEFAULT_SETTINGS } from "@/lib/settings";
+import { useSettings } from "@/hooks/useSettings";
 import { LANGUAGE_NAMES } from "@/lib/tasks/prompts";
 import { pickRoute } from "@/lib/tasks/router";
 import type { TargetLanguage, TaskKind } from "@/lib/tasks/types";
@@ -19,6 +19,7 @@ const TASKS: { kind: TaskKind; label: string; hint: string }[] = [
 export function TaskStep() {
   const { state, dispatch, runCurrentTask, consentRequest } = useWorkspace();
   const { status: deviceStatus } = useDeviceStatus();
+  const settings = useSettings();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const { task } = state;
 
@@ -30,7 +31,7 @@ export function TaskStep() {
   const route =
     deviceStatus === "checking"
       ? null
-      : pickRoute({ kind: task.kind, options: { language: task.language } }, masked, DEFAULT_SETTINGS, deviceStatus);
+      : pickRoute({ kind: task.kind, options: { language: task.language } }, masked, settings, deviceStatus);
 
   const canRun = task.kind !== "ask" || task.question.trim().length > 0;
   const busy = state.run.status === "running" || consentRequest !== null;
