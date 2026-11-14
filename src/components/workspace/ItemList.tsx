@@ -54,13 +54,29 @@ export function ItemList() {
             const group = items.filter((i) => i.type === type);
             if (group.length === 0) return null;
             const headingId = `group-${type}`;
+            const allMasked = group.every((i) => i.enabled);
+            const label = TYPE_LABELS[type];
             return (
               <div key={type} role="group" aria-labelledby={headingId}>
-                <h4 id={headingId} className="mb-1 flex items-center gap-2 text-sm font-medium text-ink">
-                  <span aria-hidden="true" className={`size-2.5 rounded-full ${TYPE_STYLES[type].chip}`} />
-                  {TYPE_LABELS[type]}
-                  <span className="text-muted">({group.length})</span>
-                </h4>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <h4 id={headingId} className="flex items-center gap-2 text-sm font-medium text-ink">
+                    <span aria-hidden="true" className={`size-2.5 rounded-full ${TYPE_STYLES[type].chip}`} />
+                    {label}
+                    <span className="text-muted">({group.length})</span>
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: "SET_TYPE_ENABLED", itemType: type, enabled: !allMasked })}
+                    aria-label={
+                      allMasked
+                        ? `Show all ${group.length} ${label} to the AI (do not mask)`
+                        : `Mask all ${group.length} ${label}`
+                    }
+                    className="rounded px-2 py-0.5 text-xs font-medium text-muted hover:bg-line hover:text-ink focus-visible:outline-2 focus-visible:outline-device"
+                  >
+                    {allMasked ? "Show all" : "Hide all"}
+                  </button>
+                </div>
                 <ul className="space-y-1">
                   {group.map((item) => (
                     <li key={item.id} className="flex items-center gap-2 rounded-md px-1 py-1 hover:bg-canvas">

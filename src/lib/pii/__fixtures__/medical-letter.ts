@@ -23,6 +23,7 @@ Dr Yasmine Trabelsi
 /** What the regex scanner alone must find in letterText. */
 export const letterExpectedRegex: ReadonlyArray<{ type: PiiType; text: string }> = [
   { type: "PHONE", text: "71 234 567" },
+  { type: "DATE", text: "3 June 2026" },
   { type: "DATE_OF_BIRTH", text: "2 May 1985" },
   { type: "EMAIL", text: "julien.moreau@example.fr" },
   { type: "PHONE", text: "06 11 22 33 44" },

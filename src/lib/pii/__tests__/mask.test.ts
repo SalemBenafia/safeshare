@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cvAddress, cvNames, cvText } from "../__fixtures__/cv";
 import { letterNames, letterText } from "../__fixtures__/medical-letter";
-import { leakCheck, mask, unmask } from "../mask";
+import { leakCheck, mask, maskWithMap, removeInventedPlaceholders, unmask } from "../mask";
 import { mergeItems, scanWithRegex } from "../scan";
 import { item } from "./helpers";
 
@@ -114,6 +114,50 @@ describe("mask/unmask round trip", () => {
   });
 });
 
+describe("removeInventedPlaceholders", () => {
+  it("turns bracketed role words the model invented into normal words", () => {
+    expect(removeInventedPlaceholders("Olive Data SARL ([CLIENT]) and [PERSON_3] ([CONSULTANT])")).toBe(
+      "Olive Data SARL (Client) and [PERSON_3] (Consultant)",
+    );
+    expect(removeInventedPlaceholders("The [SERVICE_PROVIDER] agrees.")).toBe("The Service Provider agrees.");
+  });
+
+  it("never touches real placeholders, even unknown ones", () => {
+    expect(removeInventedPlaceholders("[PERSON_1], [DATE_OF_BIRTH_2] and [PERSON_9]")).toBe(
+      "[PERSON_1], [DATE_OF_BIRTH_2] and [PERSON_9]",
+    );
+  });
+
+  it("leaves normal brackets and lowercase text alone", () => {
+    expect(removeInventedPlaceholders("See note [a] and [1] and [Draft].")).toBe("See note [a] and [1] and [Draft].");
+  });
+});
+
+describe("maskWithMap", () => {
+  const map = new Map([
+    ["[PERSON_1]", "Ahmed Ben Ali"],
+    ["[PERSON_2]", "Ahmed"],
+    ["[EMAIL_1]", "ahmed@example.com"],
+  ]);
+
+  it("reuses the document's placeholders, longest first", () => {
+    expect(maskWithMap("Is Ahmed Ben Ali the same as Ahmed?", map)).toBe(
+      "Is [PERSON_1] the same as [PERSON_2]?",
+    );
+  });
+
+  it("only replaces whole words and leaves unknown values", () => {
+    expect(maskWithMap("Ahmedou wrote to ahmed@example.com about Sami.", map)).toBe(
+      "Ahmedou wrote to [EMAIL_1] about Sami.",
+    );
+  });
+
+  it("round-trips with unmask", () => {
+    const q = "Where did Ahmed Ben Ali work?";
+    expect(unmask(maskWithMap(q, map), map)).toBe(q);
+  });
+});
+
 describe("leakCheck", () => {
   it("passes for properly masked text", () => {
     const items = [item("Hana Jaziri", "PERSON")];
@@ -138,6 +182,33 @@ describe("leakCheck", () => {
   it("ignores items the user disabled, even when the regex finds them", () => {
     const items = [item("hana.j@example.com", "EMAIL", { enabled: false })];
     expect(leakCheck("Write to hana.j@example.com", items).ok).toBe(true);
+  });
+
+  it("passes when the user deliberately switched all dates off", () => {
+    const text = "Rim Sassi signs on 10 January 2026; the contract ends on 31 July 2026.";
+    const items = [
+      item("Rim Sassi", "PERSON"),
+      item("10 January 2026", "DATE", { enabled: false }),
+      item("31 July 2026", "DATE", { enabled: false }),
+    ];
+    const { masked } = mask(text, items);
+    expect(masked).toBe("[PERSON_1] signs on 10 January 2026; the contract ends on 31 July 2026.");
+    expect(leakCheck(masked, items)).toEqual({ ok: true, leaks: [] });
+  });
+
+  it("does not block on a date that is not an item, but still blocks a missed email", () => {
+    const items = [item("Rim Sassi", "PERSON")];
+    expect(leakCheck("[PERSON_1] met us on 4 May 2026.", items).ok).toBe(true);
+    expect(leakCheck("[PERSON_1] met us on 4 May 2026: rim@example.com", items).leaks).toEqual([
+      { text: "rim@example.com", type: "EMAIL", reason: "regex" },
+    ]);
+  });
+
+  it("still blocks an enabled date that was not masked", () => {
+    const items = [item("10 January 2026", "DATE")];
+    expect(leakCheck("Signed on 10 January 2026.", items).leaks).toEqual([
+      { text: "10 January 2026", type: "DATE", reason: "item" },
+    ]);
   });
 
   it("reports each leaked text once", () => {

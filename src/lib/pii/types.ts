@@ -8,6 +8,7 @@ export const PII_TYPES = [
   "BANK",
   "HEALTH",
   "DATE_OF_BIRTH",
+  "DATE",
   "OTHER",
 ] as const;
 
@@ -34,6 +35,7 @@ export const TYPE_SPECIFICITY: readonly PiiType[] = [
   "PHONE",
   "ID_NUMBER",
   "DATE_OF_BIRTH",
+  "DATE",
   "HEALTH",
   "ADDRESS",
   "PERSON",

@@ -1,7 +1,9 @@
-// Workspace state (SPEC §3 steps 1-3). Pure: no React, no browser APIs.
+// Workspace state (SPEC §3). Pure: no React, no browser APIs.
 // The placeholder map is NEVER stored here; it is derived in memory when needed.
 import { findOccurrences } from "../pii/text";
 import { itemId, type PiiItem, type PiiType } from "../pii/types";
+import type { FriendlyError } from "../tasks/errors";
+import type { RewriteStyle, Route, TargetLanguage, TaskKind, TaskResult } from "../tasks/types";
 
 export type Step = 1 | 2 | 3 | 4;
 export type ReviewTab = "highlights" | "masked";
@@ -14,6 +16,24 @@ export interface ScanState {
   error: string;
 }
 
+export interface TaskState {
+  kind: TaskKind;
+  style: RewriteStyle;
+  language: TargetLanguage;
+  /** Raw question as typed; masked with the document map just before running. */
+  question: string;
+}
+
+export interface RunState {
+  status: "idle" | "running" | "done" | "error";
+  runId: number;
+  route: Route | null;
+  /** Unmasked answer so far, while streaming. */
+  partial: string;
+  result: TaskResult | null;
+  error: FriendlyError | null;
+}
+
 export interface WorkspaceState {
   step: Step;
   /** Highest step the user has reached; earlier steps can be revisited. */
@@ -22,7 +42,18 @@ export interface WorkspaceState {
   items: PiiItem[];
   scan: ScanState;
   reviewTab: ReviewTab;
+  task: TaskState;
+  run: RunState;
 }
+
+const idleRun: RunState = {
+  status: "idle",
+  runId: 0,
+  route: null,
+  partial: "",
+  result: null,
+  error: null,
+};
 
 export const initialState: WorkspaceState = {
   step: 1,
@@ -31,6 +62,8 @@ export const initialState: WorkspaceState = {
   items: [],
   scan: { status: "idle", runId: 0, usedAI: false, failedChunks: 0, error: "" },
   reviewTab: "highlights",
+  task: { kind: "summarise", style: "formal", language: "fr", question: "" },
+  run: idleRun,
 };
 
 export type WorkspaceAction =
@@ -39,10 +72,17 @@ export type WorkspaceAction =
   | { type: "SCAN_SUCCESS"; runId: number; items: PiiItem[]; usedAI: boolean; failedChunks: number }
   | { type: "SCAN_ERROR"; runId: number; error: string }
   | { type: "TOGGLE_ITEM"; id: string }
+  | { type: "SET_TYPE_ENABLED"; itemType: PiiType; enabled: boolean }
   | { type: "ADD_ITEM"; text: string; itemType: PiiType }
   | { type: "REMOVE_ITEM"; id: string }
   | { type: "SET_TAB"; tab: ReviewTab }
-  | { type: "GO_TO_STEP"; step: Step };
+  | { type: "GO_TO_STEP"; step: Step }
+  | { type: "CONTINUE_TO_TASK" }
+  | { type: "SET_TASK"; patch: Partial<TaskState> }
+  | { type: "RUN_START"; route: Route }
+  | { type: "RUN_UPDATE"; runId: number; text: string }
+  | { type: "RUN_SUCCESS"; runId: number; result: TaskResult }
+  | { type: "RUN_ERROR"; runId: number; error: FriendlyError };
 
 /** Returns an error message, or null if `value` can be added as an item. */
 export function validateNewItem(text: string, value: string): string | null {
@@ -75,11 +115,27 @@ function mergeRescan(text: string, previous: PiiItem[], found: PiiItem[]): PiiIt
   return byPosition(text, merged);
 }
 
+/** A result is only valid for the exact items and task it was made with. */
+function invalidateRun(state: WorkspaceState): Pick<WorkspaceState, "run" | "maxStep" | "step"> {
+  const cap = (s: Step): Step => (s > 3 ? 3 : s);
+  return {
+    run: { ...idleRun, runId: state.run.runId },
+    maxStep: cap(state.maxStep),
+    step: cap(state.step),
+  };
+}
+
 export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState {
   switch (action.type) {
     case "SET_TEXT":
       if (action.text === state.text) return state;
-      return { ...initialState, text: action.text, scan: { ...initialState.scan, runId: state.scan.runId } };
+      return {
+        ...initialState,
+        text: action.text,
+        task: state.task,
+        scan: { ...initialState.scan, runId: state.scan.runId },
+        run: { ...idleRun, runId: state.run.runId },
+      };
 
     case "SCAN_START":
       return {
@@ -91,6 +147,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       if (action.runId !== state.scan.runId) return state; // stale result
       return {
         ...state,
+        ...invalidateRun(state),
         items: mergeRescan(state.text, state.items, action.items),
         scan: {
           ...state.scan,
@@ -100,7 +157,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
           error: "",
         },
         step: 2,
-        maxStep: state.maxStep < 2 ? 2 : state.maxStep,
+        maxStep: state.maxStep < 2 ? 2 : state.maxStep > 3 ? 3 : state.maxStep,
         reviewTab: "highlights",
       };
 
@@ -111,8 +168,18 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
     case "TOGGLE_ITEM":
       return {
         ...state,
+        ...invalidateRun(state),
         items: state.items.map((i) => (i.id === action.id ? { ...i, enabled: !i.enabled } : i)),
       };
+
+    case "SET_TYPE_ENABLED": {
+      if (!state.items.some((i) => i.type === action.itemType && i.enabled !== action.enabled)) return state;
+      return {
+        ...state,
+        ...invalidateRun(state),
+        items: state.items.map((i) => (i.type === action.itemType ? { ...i, enabled: action.enabled } : i)),
+      };
+    }
 
     case "ADD_ITEM": {
       const value = action.text.trim();
@@ -121,6 +188,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       if (existing) {
         return {
           ...state,
+          ...invalidateRun(state),
           items: state.items.map((i) =>
             i === existing ? { ...i, enabled: true, type: action.itemType } : i,
           ),
@@ -133,14 +201,18 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
         enabled: true,
         origin: "user",
       };
-      return { ...state, items: byPosition(state.text, [...state.items, added]) };
-    }
-
-    case "REMOVE_ITEM":
       return {
         ...state,
-        items: state.items.filter((i) => !(i.id === action.id && i.origin === "user")),
+        ...invalidateRun(state),
+        items: byPosition(state.text, [...state.items, added]),
       };
+    }
+
+    case "REMOVE_ITEM": {
+      const target = state.items.find((i) => i.id === action.id && i.origin === "user");
+      if (!target) return state;
+      return { ...state, ...invalidateRun(state), items: state.items.filter((i) => i !== target) };
+    }
 
     case "SET_TAB":
       return { ...state, reviewTab: action.tab };
@@ -148,5 +220,35 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
     case "GO_TO_STEP":
       if (action.step > state.maxStep) return state;
       return { ...state, step: action.step };
+
+    case "CONTINUE_TO_TASK":
+      if (state.scan.status !== "done") return state;
+      return { ...state, step: 3, maxStep: state.maxStep < 3 ? 3 : state.maxStep };
+
+    case "SET_TASK":
+      return { ...state, ...invalidateRun(state), task: { ...state.task, ...action.patch }, step: 3 };
+
+    case "RUN_START":
+      return {
+        ...state,
+        run: { ...idleRun, status: "running", runId: state.run.runId + 1, route: action.route },
+        step: 4,
+        maxStep: 4,
+      };
+
+    case "RUN_UPDATE":
+      if (action.runId !== state.run.runId || state.run.status !== "running") return state;
+      return { ...state, run: { ...state.run, partial: action.text } };
+
+    case "RUN_SUCCESS":
+      if (action.runId !== state.run.runId) return state;
+      return {
+        ...state,
+        run: { ...state.run, status: "done", partial: action.result.text, result: action.result },
+      };
+
+    case "RUN_ERROR":
+      if (action.runId !== state.run.runId) return state;
+      return { ...state, run: { ...state.run, status: "error", error: action.error } };
   }
 }

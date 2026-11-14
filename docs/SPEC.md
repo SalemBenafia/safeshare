@@ -9,7 +9,7 @@ Job seekers (CVs), HR staff, small clinics, lawyers, NGOs and students: anyone w
 ## 3. Main flow
 1. **Input**: paste text, load a sample, or drop a JPEG/PNG photo of a document (read on-device only).
 2. **Privacy scan** (on-device only): Gemini Nano returns a JSON list of personal items. A regex scanner also runs, and the results are merged.
-3. **Review**: items are highlighted in the text. The user can switch any item off or on, or select text to add an item.
+3. **Review**: items are highlighted in the text, coloured by type. The user can switch any item off or on, switch a whole type with its group toggle (for example all dates), or select text to add an item.
 4. **Mask**: each enabled item is replaced by a placeholder such as `[PERSON_1]`. The same value always gets the same placeholder. The map stays in memory only.
 5. **Task**: Summarise | Rewrite (formal or simple) | Translate (English, French, Arabic) | Ask a question.
 6. **Route**: the router picks the model (see section 6). `leakCheck()` runs before any model call.
@@ -32,6 +32,8 @@ Job seekers (CVs), HR staff, small clinics, lawyers, NGOs and students: anyone w
 | `ai/source.ts` | `toSource(inferenceSource)`: returns `"ON_DEVICE" \| "IN_CLOUD" \| "UNKNOWN"` |
 | `pii/types.ts` | `PII_TYPES`, `PiiItem { id, text, type, enabled, origin: "ai" \| "regex" \| "user" }` |
 | `pii/scan.ts` | `chunkText()`, `scanWithRegex()`, `scanWithAI()`, `mergeItems()`, `scanDocument()` |
+| `pii/dates.ts` | Date formats, `isDateText()`, `hasBirthKeywordNearby()`, `classifyDate()` (`DATE_OF_BIRTH` or `DATE`) |
+| `pii/clean.ts` | `cleanScanItems()`: trims items, drops role words and non-dates, fixes date and organisation types |
 | `pii/mask.ts` | `mask(text, items)` returns `{ masked, map }`; `unmask(text, map)`; `leakCheck(masked, items)` |
 | `tasks/prompts.ts` | `buildPrompt(task, maskedText, options)` |
 | `tasks/router.ts` | `pickRoute(task, maskedText, settings, deviceStatus)` returns `{ target: "hybrid" \| "cloud", reason }` |
@@ -49,7 +51,26 @@ Job seekers (CVs), HR staff, small clinics, lawyers, NGOs and students: anyone w
 Every result shows its reason, for example "Long document -> cloud" or "Short task -> on-device".
 
 ## 7. PII types
-`PERSON`, `EMAIL`, `PHONE`, `ID_NUMBER`, `ADDRESS`, `BANK`, `HEALTH`, `DATE_OF_BIRTH`, `OTHER`
+Every type below is personal data and is **masked by default** (items are found, highlighted and enabled). In Review, the user can switch single items off, or a whole type with its group toggle ("Dates (3): Hide all / Show all"), for example to let the AI calculate a duration.
+
+| Type | What it covers | Example (invented) |
+|---|---|---|
+| `PERSON` | Names of people | Leila Mansour |
+| `EMAIL` | Email addresses | leila@example.com |
+| `PHONE` | Phone numbers, international or national | +216 22 333 444 |
+| `ID_NUMBER` | National ID, passport, patient file and similar numbers | CIN 07654321 |
+| `ADDRESS` | Home or postal addresses | 8 Rue Ibn Khaldoun, 3027 Sfax |
+| `BANK` | IBANs and card numbers | TN59 0401 8104 0049 1234 5678 |
+| `HEALTH` | Diagnoses, treatments, health details | type 2 diabetes |
+| `DATE_OF_BIRTH` | A date with a birth keyword ("born", "date of birth", "DOB", "né le", "née le") within about 30 characters before it | born on 22 September 1988 |
+| `DATE` | Any other full date: contract, appointment, admission, visit dates | 10 January 2026 |
+| `OTHER` | Other identifying data, including company and organisation names | Olive Data SARL |
+
+Date formats detected by both the AI scan and `scanWithRegex()`: "10 January 2026", "January 10, 2026", "10/01/2026", "2026-01-10", "10.01.2026" and French month names ("10 janvier 2026").
+
+Not personal data, never items: plain years ("2026"), durations ("thirty days"), clause numbers ("1.2"), and role words (Client, Consultant, Party, Manager, Company, Agreement, Services, …). Items are trimmed of surrounding spaces and punctuation.
+
+`leakCheck()` blocks a task only for **enabled** items still present in the text, and for new regex hits of type `EMAIL`, `PHONE`, `ID_NUMBER` or `BANK`. Items the user deliberately switched off (for example all dates) never block a task.
 
 ## 8. Data model (Firestore; only when "Save history" is ON, which is OFF by default)
 `users/{uid}/history/{id}`: `{ createdAt, task, maskedInput (max 20,000 chars), maskedOutput, itemCounts: { [type]: number }, source, reason }`

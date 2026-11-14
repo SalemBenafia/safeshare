@@ -6,8 +6,8 @@ import { useWorkspace } from "./WorkspaceProvider";
 const STEPS: { n: Step; label: string; available: boolean }[] = [
   { n: 1, label: "Input", available: true },
   { n: 2, label: "Review", available: true },
-  { n: 3, label: "Task", available: false },
-  { n: 4, label: "Result", available: false },
+  { n: 3, label: "Task", available: true },
+  { n: 4, label: "Result", available: true },
 ];
 
 export function StepIndicator() {

@@ -57,9 +57,56 @@ describe("scanWithRegex: positives", () => {
   });
 });
 
+describe("scanWithRegex: brackets", () => {
+  it.each([
+    ["(+216 22 333 444)", "+216 22 333 444"],
+    ["Karim (karim@example.com, +216 22 333 444).", "+216 22 333 444"],
+    ["Call +1 (555) 010-0199)", "+1 (555) 010-0199"],
+  ])("does not swallow the closing bracket in %j", (text, phone) => {
+    expect(found(text).filter((f) => f.type === "PHONE")).toEqual([{ type: "PHONE", text: phone }]);
+  });
+});
+
+describe("scanWithRegex: ordinary dates", () => {
+  it.each([
+    "10 January 2026",
+    "January 10, 2026",
+    "10/01/2026",
+    "2026-01-10",
+    "10.01.2026",
+    "10 janvier 2026",
+    "1er février 2026",
+    "Jan. 10, 2026",
+  ])("finds %j as DATE", (date) => {
+    expect(found(`The appointment is on ${date}, at noon.`)).toEqual([{ type: "DATE", text: date }]);
+  });
+
+  it("treats a date without a birth keyword as DATE, not DATE_OF_BIRTH", () => {
+    expect(found("The meeting is on 14/03/1991 at noon.")).toEqual([{ type: "DATE", text: "14/03/1991" }]);
+  });
+
+  it("uses DATE_OF_BIRTH when a birth keyword is within about 30 characters before", () => {
+    expect(found("Leila, née le 3 avril 1979, signs on 10 janvier 2026.")).toEqual([
+      { type: "DATE_OF_BIRTH", text: "3 avril 1979" },
+      { type: "DATE", text: "10 janvier 2026" },
+    ]);
+  });
+
+  it.each([
+    "The contract lasts thirty days.",
+    "Signed in 2026.",
+    "See clause 1.2 and 3.1.",
+    "Upgrade to version 2.4.1 or 10.0.19045.",
+    "Order 2026-118 shipped in 2021.",
+    "Not a date: 32/13/2026.",
+    "Years 2016–2019 and 2019–2024.",
+  ])("finds no date in %j", (text) => {
+    expect(found(text).filter((f) => f.type === "DATE" || f.type === "DATE_OF_BIRTH")).toEqual([]);
+  });
+});
+
 describe("scanWithRegex: conservative (no false positives)", () => {
   it.each([
-    "The meeting is on 14/03/1991 at noon.",
     "Order 2026-118 shipped in 2021.",
     "Upgrade to version 2.4.1 or 10.0.19045.",
     "Card 4111 1111 1111 1112 is not valid.",

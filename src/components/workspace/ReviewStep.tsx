@@ -110,14 +110,11 @@ export function ReviewStep() {
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line pt-4">
-        <p id="task-hint" className="text-sm text-muted">
-          Tasks (summarise, rewrite, translate, ask) arrive in the next phase.
-        </p>
+        <p className="text-sm text-muted">Next: choose what the AI should do with the masked text.</p>
         <button
           type="button"
-          disabled
-          aria-describedby="task-hint"
-          className="rounded-lg bg-device px-5 py-2.5 font-medium text-white opacity-50"
+          onClick={() => dispatch({ type: "CONTINUE_TO_TASK" })}
+          className="rounded-lg bg-device px-5 py-2.5 font-medium text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-device"
         >
           Continue to task
         </button>

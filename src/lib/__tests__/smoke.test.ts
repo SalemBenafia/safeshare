@@ -3,8 +3,8 @@ import { PII_TYPES } from "@/lib/pii/types";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 
 describe("smoke", () => {
-  it("defines the nine PII types from the spec", () => {
-    expect(PII_TYPES).toHaveLength(9);
+  it("defines the ten PII types from the spec", () => {
+    expect(PII_TYPES).toHaveLength(10);
     expect(PII_TYPES).toContain("PERSON");
   });
 

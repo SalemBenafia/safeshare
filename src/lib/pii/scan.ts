@@ -2,6 +2,7 @@
 import type { DeviceStatus } from "../ai/device";
 import { scanModel } from "../ai/models";
 import type { Settings } from "../settings";
+import { cleanScanItems } from "./clean";
 import { scanWithRegex } from "./regex";
 import { isMoreSpecific, isPiiType, itemId, PII_TYPES, type PiiItem, type PiiType } from "./types";
 
@@ -58,12 +59,40 @@ export function chunkText(text: string, maxChars: number): string[] {
 
 // ---------- AI scan (on-device only) ----------
 
+// Invented examples that teach the edge cases (role words, ordinary dates, companies, brackets).
+const SCAN_EXAMPLES = [
+  [
+    'Signed on 3 March 2025 by Sami Kefi (the Client), born on 4 June 1990.',
+    '{"items":[{"text":"3 March 2025","type":"DATE"},{"text":"Sami Kefi","type":"PERSON"},{"text":"4 June 1990","type":"DATE_OF_BIRTH"}]}',
+  ],
+  [
+    "Olive Data SARL will pay the Consultant 500 euros by 30 April 2026.",
+    '{"items":[{"text":"Olive Data SARL","type":"OTHER"},{"text":"30 April 2026","type":"DATE"}]}',
+  ],
+  [
+    "Call Nadia Ferchichi at +216 20 111 222 (mobile) or nadia.f@example.com.",
+    '{"items":[{"text":"Nadia Ferchichi","type":"PERSON"},{"text":"+216 20 111 222","type":"PHONE"},{"text":"nadia.f@example.com","type":"EMAIL"}]}',
+  ],
+];
+
 export function buildScanPrompt(chunk: string): string {
   return [
     "You are a privacy scanner. List every piece of personal data in the text below.",
-    "Copy each item exactly as written in the text: same spelling, same spacing, same punctuation. Do not translate, correct or invent anything.",
-    "Include names of people, email addresses, phone numbers, ID or file numbers, postal addresses, bank or card numbers, health information and dates of birth.",
-    `Use only these types: ${PII_TYPES.join(", ")}.`,
+    "Copy each item exactly as written in the text: same spelling, same spacing. Do not translate, correct or invent anything.",
+    "",
+    "Rules:",
+    "- Personal data: names of people, email addresses, phone numbers, ID or file numbers, home or postal addresses, bank or card numbers, health information, and full dates.",
+    "- Company and organisation names have type OTHER, never PERSON.",
+    "- Never list role words such as Client, Consultant, Party, Manager, Patient or Company.",
+    "- Dates are personal data. Use DATE_OF_BIRTH only when the text says it is a birth date (born, date of birth, DOB, né le, née le). Every other full date (contract, appointment, admission, visit) is DATE.",
+    "- Plain years (2026), durations (thirty days) and clause numbers (1.2) are not dates: do not list them.",
+    "- An address is ONE item: copy the whole address (street, postcode, city, country) as written, not its parts separately.",
+    "- Do not include surrounding brackets, quotes or punctuation in an item.",
+    `- Use only these types: ${PII_TYPES.join(", ")}.`,
+    "",
+    "Examples:",
+    ...SCAN_EXAMPLES.flatMap(([text, answer]) => [`Text: ${text}`, `Answer: ${answer}`]),
+    "",
     'Answer with JSON only, in this shape: {"items":[{"text":"...","type":"PERSON"}]}. If there is no personal data, answer {"items":[]}.',
     "",
     "TEXT START",
@@ -188,6 +217,8 @@ export async function scanDocument(
     }
   }
 
+  // Trim punctuation, drop role words and ordinary dates, fix organisation types.
+  const cleaned = cleanScanItems(text, items);
   const position = (item: PiiItem) => text.indexOf(item.text);
-  return { items: [...items].sort((a, b) => position(a) - position(b)), usedAI, failedChunks };
+  return { items: cleaned.sort((a, b) => position(a) - position(b)), usedAI, failedChunks };
 }

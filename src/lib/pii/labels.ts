@@ -10,6 +10,7 @@ export const TYPE_LABELS: Record<PiiType, string> = {
   BANK: "Bank and card",
   HEALTH: "Health",
   DATE_OF_BIRTH: "Dates of birth",
+  DATE: "Dates",
   OTHER: "Other",
 };
 

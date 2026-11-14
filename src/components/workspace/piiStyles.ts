@@ -12,6 +12,7 @@ export const TYPE_STYLES: Record<PiiType, { mark: string; chip: string }> = {
   BANK: { mark: "bg-red-100 text-red-950", chip: "bg-red-500" },
   HEALTH: { mark: "bg-pink-100 text-pink-950", chip: "bg-pink-500" },
   DATE_OF_BIRTH: { mark: "bg-indigo-100 text-indigo-950", chip: "bg-indigo-500" },
+  DATE: { mark: "bg-cyan-100 text-cyan-950", chip: "bg-cyan-500" },
   OTHER: { mark: "bg-slate-200 text-slate-950", chip: "bg-slate-500" },
 };
 

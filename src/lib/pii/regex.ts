@@ -1,13 +1,14 @@
 // Conservative regex scanner. Runs on-device; used alone when Gemini Nano is unavailable.
+import { classifyDate, DATE, isValidDate } from "./dates";
 import { claimLongestFirst } from "./text";
 import { itemId, type PiiItem, type PiiType } from "./types";
 
 interface Rule {
   type: PiiType;
   pattern: RegExp;
-  /** Index of the capture group holding the item; 0 = whole match. Must end the match. */
-  group?: number;
-  valid?: (text: string) => boolean;
+  valid?: (value: string) => boolean;
+  /** Decides the type from context (used for dates). */
+  classify?: (text: string, value: string) => PiiType;
 }
 
 const digitsOf = (s: string) => s.replace(/\D/g, "");
@@ -27,23 +28,6 @@ function luhn(digits: string): boolean {
   return sum % 10 === 0;
 }
 
-const MONTHS = [
-  "january", "february", "march", "april", "may", "june", "july", "august",
-  "september", "october", "november", "december",
-  "janvier", "février", "fevrier", "mars", "avril", "mai", "juin", "juillet",
-  "août", "aout", "septembre", "octobre", "novembre", "décembre", "decembre",
-  "sept", "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
-].join("|");
-
-const YEAR = String.raw`(?:19|20)\d{2}`;
-const DATE = [
-  String.raw`\d{1,2}[/.-]\d{1,2}[/.-]${YEAR}`,
-  String.raw`${YEAR}-\d{2}-\d{2}`,
-  String.raw`\d{1,2}(?:er|st|nd|rd|th)?\s+(?:${MONTHS})\.?\s+${YEAR}`,
-  String.raw`(?:${MONTHS})\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+${YEAR}`,
-].join("|");
-const DOB_KEYWORD = String.raw`(?:date\s+of\s+birth|birth\s*date|date\s+de\s+naissance|d\.?o\.?b\.?|born|née|né)`;
-
 const RULES: Rule[] = [
   {
     type: "EMAIL",
@@ -51,8 +35,9 @@ const RULES: Rule[] = [
   },
   {
     // International: +CC then 2-6 groups; 8-15 digits in total.
+    // Brackets must be paired, e.g. "(555)", so a closing ")" after the number is never swallowed.
     type: "PHONE",
-    pattern: /(?<![\w+])\+\d{1,3}(?:[ .-]?\(?\d{1,4}\)?){2,6}(?!\d)/g,
+    pattern: /(?<![\w+])\+\d{1,3}(?:[ .-]?(?:\(\d{1,4}\)|\d{1,4})){2,6}(?!\d)/g,
     valid: (t) => digitsOf(t).length >= 8 && digitsOf(t).length <= 15,
   },
   {
@@ -84,13 +69,12 @@ const RULES: Rule[] = [
     },
   },
   {
-    // A date shortly after "born", "DOB", "date of birth", "né(e)", ...
-    type: "DATE_OF_BIRTH",
-    pattern: new RegExp(
-      String.raw`(?<!\p{L})${DOB_KEYWORD}(?!\p{L})[^\n\d]{0,25}?(${DATE})(?![\p{L}\p{N}])`,
-      "giu",
-    ),
-    group: 1,
+    // Full dates: DATE_OF_BIRTH with a birth keyword nearby, DATE otherwise.
+    // Guards keep "10.0.19045", "1.2" and plain years out.
+    type: "DATE",
+    pattern: new RegExp(String.raw`(?<![\p{L}\p{N}./-])(?:${DATE})(?![\p{L}\p{N}]|[./-]\d)`, "giu"),
+    valid: isValidDate,
+    classify: classifyDate,
   },
 ];
 
@@ -101,16 +85,17 @@ interface Hit {
   type: PiiType;
 }
 
-/** Finds emails, phones, IBAN/card numbers and dates of birth. Conservative on purpose. */
+/** Finds emails, phones, IBAN/card numbers and dates. Conservative on purpose. */
 export function scanWithRegex(text: string): PiiItem[] {
   const hits: Hit[] = [];
   for (const rule of RULES) {
     rule.pattern.lastIndex = 0;
     for (const m of text.matchAll(rule.pattern)) {
-      const value = m[rule.group ?? 0];
+      const value = m[0];
       if (!value || (rule.valid && !rule.valid(value))) continue;
-      const end = (m.index ?? 0) + m[0].length;
-      hits.push({ start: end - value.length, end, text: value, type: rule.type });
+      const start = m.index ?? 0;
+      const type = rule.classify ? rule.classify(text, value) : rule.type;
+      hits.push({ start, end: start + value.length, text: value, type });
     }
   }
 

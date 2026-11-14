@@ -59,6 +59,27 @@ export function mask(text: string, items: PiiItem[]): MaskResult {
   return { masked, map };
 }
 
+/**
+ * Masks extra text (e.g. the user's question) with an EXISTING map, so the same
+ * value gets the same placeholder as in the document. Longest values first,
+ * whole words only. Values not in the map are left as they are.
+ */
+export function maskWithMap(text: string, map: PlaceholderMap): string {
+  const candidates: { start: number; end: number; placeholder: string }[] = [];
+  for (const [placeholder, value] of map) {
+    for (const start of findOccurrences(text, value)) {
+      candidates.push({ start, end: start + value.length, placeholder });
+    }
+  }
+  let out = "";
+  let last = 0;
+  for (const { start, end, placeholder } of claimLongestFirst(candidates)) {
+    out += text.slice(last, start) + placeholder;
+    last = end;
+  }
+  return out + text.slice(last);
+}
+
 const TOKEN = `(?:${PII_TYPES.join("|")})_\\d+`;
 const PLACEHOLDER = new RegExp(
   `\\[(${TOKEN})\\]|(?<![\\p{L}\\p{N}_\\[])(${TOKEN})(?![\\p{L}\\p{N}_\\]])`,
@@ -76,6 +97,23 @@ export function unmask(text: string, map: PlaceholderMap): string {
   });
 }
 
+/** A bracketed word the model invented, e.g. "[CLIENT]" or "[SERVICE_PROVIDER]" (no number). */
+const INVENTED_PLACEHOLDER = /\[([A-Z]{2,}(?:[ _][A-Z]{2,})*)\]/g;
+
+/**
+ * Cleans model output: words the model put in brackets itself (it imitates our
+ * placeholder style) become normal words, e.g. "[CLIENT]" -> "Client".
+ * Real placeholders always have a number ("[PERSON_1]") and are not touched.
+ */
+export function removeInventedPlaceholders(text: string): string {
+  return text.replace(INVENTED_PLACEHOLDER, (_m, words: string) =>
+    words
+      .split(/[ _]/)
+      .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+      .join(" "),
+  );
+}
+
 export interface Leak {
   text: string;
   type: PiiType;
@@ -89,10 +127,13 @@ export interface LeakReport {
   leaks: Leak[];
 }
 
+/** Regex hit types that block a task even when they are not an item. */
+const BLOCKING_REGEX_TYPES: ReadonlySet<PiiType> = new Set(["EMAIL", "PHONE", "ID_NUMBER", "BANK"]);
+
 /**
  * Must pass before any hybrid or cloud call; if `ok` is false, block the call.
- * Reports enabled items still in the masked text, plus new regex hits that the
- * user did not deliberately switch off.
+ * Reports enabled items still in the masked text, plus new email, phone, ID or
+ * bank regex hits that the user did not deliberately switch off.
  */
 export function leakCheck(masked: string, items: PiiItem[]): LeakReport {
   const leaks: Leak[] = [];
@@ -107,6 +148,8 @@ export function leakCheck(masked: string, items: PiiItem[]): LeakReport {
     }
   }
   for (const hit of scanWithRegex(masked)) {
+    // Only contact, ID and bank patterns block on their own; dates the user chose to show never do.
+    if (!BLOCKING_REGEX_TYPES.has(hit.type)) continue;
     if (disabled.has(hit.text) || reported.has(hit.text)) continue;
     leaks.push({ text: hit.text, type: hit.type, reason: "regex" });
     reported.add(hit.text);

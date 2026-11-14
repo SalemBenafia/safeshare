@@ -124,6 +124,116 @@ describe("workspaceReducer", () => {
   });
 });
 
+describe("workspaceReducer: group toggle", () => {
+  const DATES_TEXT = "Signed 10 January 2026 by Rim Sassi, ends 31 July 2026.";
+
+  function withDates(): WorkspaceState {
+    let s = reduce(initialState, { type: "SET_TEXT", text: DATES_TEXT });
+    s = reduce(s, { type: "SCAN_START" });
+    return reduce(s, {
+      type: "SCAN_SUCCESS",
+      runId: s.scan.runId,
+      items: [it_("10 January 2026", "DATE"), it_("Rim Sassi", "PERSON", "ai"), it_("31 July 2026", "DATE")],
+      usedAI: true,
+      failedChunks: 0,
+    });
+  }
+
+  it("disables every DATE item in one action and leaves other types alone", () => {
+    const s = reduce(withDates(), { type: "SET_TYPE_ENABLED", itemType: "DATE", enabled: false });
+    expect(s.items.map((i) => [i.text, i.enabled])).toEqual([
+      ["10 January 2026", false],
+      ["Rim Sassi", true],
+      ["31 July 2026", false],
+    ]);
+  });
+
+  it("re-enables them all", () => {
+    let s = reduce(withDates(), { type: "SET_TYPE_ENABLED", itemType: "DATE", enabled: false });
+    s = reduce(s, { type: "TOGGLE_ITEM", id: s.items[0].id });
+    s = reduce(s, { type: "SET_TYPE_ENABLED", itemType: "DATE", enabled: true });
+    expect(s.items.filter((i) => i.type === "DATE").every((i) => i.enabled)).toBe(true);
+  });
+
+  it("is a no-op when nothing changes", () => {
+    const s = withDates();
+    expect(reduce(s, { type: "SET_TYPE_ENABLED", itemType: "DATE", enabled: true })).toBe(s);
+    expect(reduce(s, { type: "SET_TYPE_ENABLED", itemType: "EMAIL", enabled: false })).toBe(s);
+  });
+
+  it("drops an existing result", () => {
+    let s = reduce(withDates(), { type: "CONTINUE_TO_TASK" });
+    s = reduce(s, { type: "RUN_START", route: { target: "hybrid", reason: "Short task → on-device" } });
+    s = reduce(s, { type: "SET_TYPE_ENABLED", itemType: "DATE", enabled: false });
+    expect(s.run.status).toBe("idle");
+    expect(s.maxStep).toBe(3);
+  });
+});
+
+describe("workspaceReducer: tasks and results", () => {
+  const route = { target: "hybrid", reason: "Short task → on-device" } as const;
+  const result = { text: "Done", maskedText: "Done", source: "ON_DEVICE", reason: route.reason, maskedChars: 120 } as const;
+
+  function atTask(): WorkspaceState {
+    return reduce(scanned(), { type: "CONTINUE_TO_TASK" });
+  }
+
+  function finished(): WorkspaceState {
+    let s = reduce(atTask(), { type: "RUN_START", route });
+    s = reduce(s, { type: "RUN_SUCCESS", runId: s.run.runId, result });
+    return s;
+  }
+
+  it("continues to the task step only after a scan", () => {
+    expect(reduce(initialState, { type: "CONTINUE_TO_TASK" })).toBe(initialState);
+    expect(atTask()).toMatchObject({ step: 3, maxStep: 3 });
+  });
+
+  it("streams, then finishes on the result step", () => {
+    let s = reduce(atTask(), { type: "RUN_START", route });
+    expect(s).toMatchObject({ step: 4, maxStep: 4, run: { status: "running", route } });
+    s = reduce(s, { type: "RUN_UPDATE", runId: s.run.runId, text: "Do" });
+    expect(s.run.partial).toBe("Do");
+    s = reduce(s, { type: "RUN_SUCCESS", runId: s.run.runId, result });
+    expect(s.run).toMatchObject({ status: "done", result, partial: "Done" });
+  });
+
+  it("ignores updates from an older run", () => {
+    let s = reduce(atTask(), { type: "RUN_START", route });
+    const old = s.run.runId;
+    s = reduce(s, { type: "RUN_START", route });
+    expect(reduce(s, { type: "RUN_UPDATE", runId: old, text: "x" })).toBe(s);
+    expect(reduce(s, { type: "RUN_SUCCESS", runId: old, result })).toBe(s);
+    expect(reduce(s, { type: "RUN_ERROR", runId: old, error: { kind: "unknown", title: "", message: "" } })).toBe(s);
+  });
+
+  it("records a friendly error", () => {
+    let s = reduce(atTask(), { type: "RUN_START", route });
+    const error = { kind: "offline", title: "Offline", message: "Try later" } as const;
+    s = reduce(s, { type: "RUN_ERROR", runId: s.run.runId, error });
+    expect(s.run).toMatchObject({ status: "error", error });
+  });
+
+  it("drops the result when an item changes", () => {
+    const s = reduce(finished(), { type: "TOGGLE_ITEM", id: finished().items[0].id });
+    expect(s.run.status).toBe("idle");
+    expect(s.maxStep).toBe(3);
+  });
+
+  it("drops the result when the task changes, and stays on the task step", () => {
+    const s = reduce(finished(), { type: "SET_TASK", patch: { kind: "translate", language: "ar" } });
+    expect(s).toMatchObject({ step: 3, maxStep: 3, task: { kind: "translate", language: "ar" } });
+    expect(s.run.result).toBeNull();
+  });
+
+  it("keeps the chosen task when the text changes, but clears everything else", () => {
+    let s = reduce(finished(), { type: "SET_TASK", patch: { kind: "rewrite", style: "simple" } });
+    s = reduce(s, { type: "SET_TEXT", text: "New text." });
+    expect(s).toMatchObject({ step: 1, maxStep: 1, items: [], task: { kind: "rewrite", style: "simple" } });
+    expect(s.run.status).toBe("idle");
+  });
+});
+
 describe("validateNewItem", () => {
   it("accepts a phrase that occurs as whole words", () => {
     expect(validateNewItem(TEXT, "Rim Sassi")).toBeNull();
