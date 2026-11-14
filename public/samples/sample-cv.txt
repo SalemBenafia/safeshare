@@ -1,0 +1,23 @@
+Ahmed Ben Ali
+Senior Software Engineer · Sfax, Tunisia
+
+Contact: ahmed.benali@example.com · +216 98 765 432
+Address: 12 Rue des Oliviers, 3000 Sfax
+Date of birth: 14/03/1991
+National ID (CIN): 08123456
+
+Profile
+Backend engineer with eight years of experience building payment and logistics platforms. Ahmed enjoys mentoring junior developers and writing clear documentation.
+
+Experience
+2019–2024: Backend developer at Olive Data (fictional company), Sfax. Led a team of four and cut API response times by 40%.
+2016–2019: Junior developer at Medina Soft (fictional), Tunis. Built the first version of the invoicing service.
+
+Education
+2011–2016: Engineering degree, National School of Engineers of Sfax (fictional record).
+
+Salary account (for HR only): TN59 0401 8104 0049 1234 5678
+
+References
+Claire Dubois, team lead, claire.dubois@example.org, +33 6 12 34 56 78
+Oliver Bennett, mentor, oliver.bennett@example.net

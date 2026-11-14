@@ -15,7 +15,7 @@ export function Header() {
 
   return (
     <header className="border-b border-line bg-surface">
-      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
         <Link href="/" className="text-xl font-semibold tracking-tight text-ink">
           Safe<span className="text-device">Share</span>
         </Link>

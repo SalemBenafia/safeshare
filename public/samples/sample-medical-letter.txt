@@ -1,0 +1,19 @@
+Clinique des Jasmins (fictional) - Dr Yasmine Trabelsi
+Avenue Habib Bourguiba 45, 1001 Tunis · Tel. 71 234 567
+
+Paris, 3 June 2026
+
+Dear colleague,
+
+I am writing about my patient Julien Moreau, born on 2 May 1985, patient file no. PF-2026-00417.
+
+Mr Moreau was diagnosed with type 2 diabetes in 2021. He currently takes metformin 1000 mg twice a day and reports good adherence. His last HbA1c was 6.9%. He also mentions occasional lower back pain after long drives.
+
+I would be grateful if you could see him for a follow-up of his diabetes and an eye examination. Julien Moreau will be in Lyon from July and would prefer an appointment there.
+
+He can be reached at julien.moreau@example.fr or 06 11 22 33 44. His partner, Sophie Martin, can also be contacted in an emergency on +33 7 98 76 54 32.
+
+Consultation fee paid by card 4111 1111 1111 1111 (order 2026-118).
+
+Kind regards,
+Dr Yasmine Trabelsi

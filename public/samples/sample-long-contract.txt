@@ -1,0 +1,100 @@
+SERVICE AGREEMENT (fictional sample - all names, numbers and addresses are invented)
+
+This Service Agreement (the "Agreement") is made on 10 January 2026 between:
+
+1. Olive Data SARL, a company registered in Tunisia under number B0123456789, with its registered office at 8 Rue Ibn Khaldoun, 3027 Sfax, Tunisia, represented by its manager, Ms Leila Mansour (the "Client"); and
+
+2. Claire Dubois, a freelance software consultant, residing at 27 Rue des Lilas, 69003 Lyon, France, email claire.dubois@example.org, phone +33 6 12 34 56 78 (the "Consultant").
+
+The Client and the Consultant are each a "Party" and together the "Parties".
+
+1. PURPOSE
+
+1.1 The Client wishes to modernise its customer billing platform. The Consultant agrees to provide software architecture and development services as described in Schedule A (the "Services").
+
+1.2 The Consultant will work mainly remotely. On-site visits to the Client's office in Sfax may be agreed in writing, with at least ten working days' notice.
+
+2. DURATION
+
+2.1 This Agreement starts on 1 February 2026 and ends on 31 July 2026, unless it is ended earlier under clause 9.
+
+2.2 The Parties may extend the Agreement by written amendment signed by both Parties.
+
+3. FEES AND PAYMENT
+
+3.1 The Client will pay the Consultant a daily fee of 520 euros, excluding taxes, for each full day of Services actually performed.
+
+3.2 The Consultant will send an invoice at the end of each month, listing the days worked and the tasks completed. Invoices are sent to the Client's accounts team at accounts@olivedata.example.com.
+
+3.3 The Client will pay each undisputed invoice within thirty days of receipt, by bank transfer to the Consultant's account: IBAN FR14 2004 1010 0505 0001 3M02 606, held in the name of Claire Dubois.
+
+3.4 Reasonable travel costs for on-site visits will be refunded on presentation of receipts, provided they were approved in advance by Ms Leila Mansour or her deputy, Mr Karim Haddad.
+
+4. OBLIGATIONS OF THE CONSULTANT
+
+4.1 The Consultant will perform the Services with the skill and care expected of an experienced professional.
+
+4.2 The Consultant will attend a weekly progress call with the Client's technical lead, Mr Karim Haddad (karim.haddad@olivedata.example.com, +216 22 333 444).
+
+4.3 The Consultant will keep a record of time spent and will share it with the Client on request.
+
+5. OBLIGATIONS OF THE CLIENT
+
+5.1 The Client will give the Consultant timely access to the documentation, test environments and staff needed to perform the Services.
+
+5.2 The Client will appoint a single point of contact for day-to-day questions. At the date of this Agreement, this is Mr Karim Haddad.
+
+6. CONFIDENTIALITY
+
+6.1 Each Party will keep confidential all non-public information received from the other Party, including customer data, source code, prices and business plans ("Confidential Information").
+
+6.2 The Consultant will not copy customer data outside the Client's systems, and will use only anonymised or invented data in tests, demonstrations and presentations.
+
+6.3 This clause continues to apply for five years after the end of this Agreement.
+
+7. DATA PROTECTION
+
+7.1 Where the Consultant processes personal data on behalf of the Client, the Consultant will act only on the Client's documented instructions and will apply appropriate technical and organisational security measures.
+
+7.2 The Consultant will tell the Client without undue delay, and in any case within 48 hours, after becoming aware of any personal data breach.
+
+8. INTELLECTUAL PROPERTY
+
+8.1 All software, documents and other materials created by the Consultant specifically for the Client under this Agreement will belong to the Client once the related invoices have been paid in full.
+
+8.2 The Consultant keeps ownership of her pre-existing tools and know-how, and grants the Client a non-exclusive, perpetual licence to use them as part of the delivered software.
+
+9. TERMINATION
+
+9.1 Either Party may end this Agreement by giving thirty days' written notice to the other Party.
+
+9.2 Either Party may end this Agreement immediately by written notice if the other Party seriously breaches it and does not remedy the breach within fifteen days of being asked to do so.
+
+9.3 On termination, the Client will pay for all Services performed up to the termination date, and the Consultant will return all Confidential Information.
+
+10. LIABILITY
+
+10.1 Each Party's total liability under this Agreement is limited to the total fees paid or payable under it, except in cases of fraud or gross negligence.
+
+11. GOVERNING LAW AND DISPUTES
+
+11.1 This Agreement is governed by Tunisian law.
+
+11.2 The Parties will first try to settle any dispute amicably. If no agreement is reached within thirty days, the dispute will be brought before the competent courts of Sfax.
+
+12. NOTICES
+
+12.1 Notices must be in writing and sent by email with a copy by registered post to the addresses given above. Notices to the Client must be addressed to Ms Leila Mansour, leila.mansour@olivedata.example.com.
+
+SCHEDULE A - SERVICES
+
+- Review of the existing billing platform and a written architecture report.
+- Design and implementation of a new invoicing API.
+- Migration plan for historical invoices, tested only with invented data.
+- Knowledge transfer sessions for the Client's developers.
+
+Signed in two original copies.
+
+For the Client: Leila Mansour, Manager, Olive Data SARL. National ID (CIN): 07654321.
+
+The Consultant: Claire Dubois, born on 22 September 1988, French passport no. 19AB12345.
