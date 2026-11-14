@@ -1,12 +1,65 @@
 // Browser-only. Lazy singletons for the Firebase app and services (SPEC §5).
-import type { FirebaseApp } from "firebase/app";
+import { initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 import type { Auth } from "firebase/auth";
 import type { Firestore } from "firebase/firestore";
 import { notImplemented } from "./notImplemented";
 
-/** Returns the single FirebaseApp, initialising it (and App Check) on first call. */
+let app: FirebaseApp | undefined;
+
+function assertBrowser(fn: string): void {
+  if (typeof window === "undefined") {
+    throw new Error(`${fn}() can only run in the browser.`);
+  }
+}
+
+function readConfig(): FirebaseOptions {
+  // Each variable is referenced literally so Next.js can inline it at build time.
+  const config: Record<string, string | undefined> = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  };
+  const missing = Object.entries(config)
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+  if (missing.length > 0) {
+    throw new Error(
+      `Firebase config is missing: ${missing.join(", ")}. Fill in .env.local (see .env.example) and restart the dev server.`,
+    );
+  }
+  return config as FirebaseOptions;
+}
+
+/** Returns the single FirebaseApp, initialising it and App Check on first call. */
 export function getFirebaseApp(): FirebaseApp {
-  return notImplemented("getFirebaseApp");
+  assertBrowser("getFirebaseApp");
+  if (app) return app;
+
+  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_ENTERPRISE_SITE_KEY;
+  if (!siteKey) {
+    throw new Error(
+      "NEXT_PUBLIC_RECAPTCHA_ENTERPRISE_SITE_KEY is missing. Fill in .env.local and restart the dev server.",
+    );
+  }
+
+  const created = initializeApp(readConfig());
+
+  if (process.env.NODE_ENV === "development") {
+    // Must be set BEFORE initializeAppCheck. The SDK then prints a debug token
+    // in the browser console; register it in Firebase console > App Check.
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  }
+  initializeAppCheck(created, {
+    provider: new ReCaptchaEnterpriseProvider(siteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+
+  app = created;
+  return app;
 }
 
 /** Firestore, used only when "Save history" is on. */
