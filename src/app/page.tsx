@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DeviceStatusCard } from "@/components/DeviceStatusCard";
 
 const STEPS = [
   { title: "Scan on your device", text: "Gemini Nano finds names, numbers and other personal data.", tone: "device" },
@@ -51,8 +52,9 @@ export default function HomePage() {
         </ol>
       </section>
 
-      <section className="rounded-xl border border-dashed border-line bg-surface p-5 text-sm text-muted">
-        Device status card: placeholder.
+      <section aria-labelledby="device" className="space-y-3">
+        <h2 id="device" className="text-xl font-semibold">This device</h2>
+        <DeviceStatusCard />
       </section>
     </div>
   );

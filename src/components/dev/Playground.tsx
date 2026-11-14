@@ -4,6 +4,7 @@
 // TODO(phase: mask): the real workspace must run mask() + leakCheck() before any call.
 
 import { useState } from "react";
+import { prepareDeviceModel } from "@/lib/ai/device";
 import { cloudModel, hybridModel } from "@/lib/ai/models";
 import { toSource, type Source } from "@/lib/ai/source";
 import { SourceBadge } from "@/components/SourceBadge";
@@ -35,7 +36,7 @@ export function Playground() {
     setProgress(0);
     try {
       // Must run from a user click (Chrome requires a user gesture to download).
-      await hybridModel().initializeDeviceModel((p) => setProgress(p));
+      await prepareDeviceModel((p) => setProgress(p));
       setProgress(1);
       setPrep("ready");
     } catch (err) {
