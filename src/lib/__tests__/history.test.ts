@@ -70,6 +70,16 @@ describe("prepareHistoryRecord", () => {
     expect(() => prepareHistoryRecord(TEXT, ITEMS, "summarise", leaky)).toThrow(LeakError);
   });
 
+  it("masks a name part the AI used on its own (\"Ms Mansour\")", () => {
+    const record = prepareHistoryRecord(TEXT, ITEMS, "summarise", { ...RESULT, text: "Ms Mansour will sign." });
+    expect(record.maskedOutput).toMatch(/^Ms \[PERSON_\d+\] will sign\.$/);
+  });
+
+  it("refuses to store an answer where the AI reworded a date", () => {
+    const reworded = { ...RESULT, text: "The contract was signed on Jan. 10, 2026." };
+    expect(() => prepareHistoryRecord(TEXT, ITEMS, "summarise", reworded)).toThrow(LeakError);
+  });
+
   it("counts the items that were protected during the task", () => {
     const record = prepareHistoryRecord(TEXT, ITEMS, "summarise", RESULT);
     expect(record.itemCounts).toEqual({ PERSON: 1, EMAIL: 1, OTHER: 1 });

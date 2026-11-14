@@ -16,16 +16,18 @@ import { getDeviceStatus } from "@/lib/ai/device";
 import { grantCloudConsent, hasCloudConsent } from "@/lib/consent";
 import { prepareHistoryRecord, saveResult } from "@/lib/history";
 import { isSaveHistoryOn } from "@/lib/historySetting";
-import { leakCheck, mask, maskWithMap } from "@/lib/pii/mask";
+import { leakCheck, mask, visibleItemCounts } from "@/lib/pii/mask";
+import type { PiiType } from "@/lib/pii/types";
 import { scanDocument } from "@/lib/pii/scan";
 import { recordLastAnswer } from "@/lib/diagnostics";
 import { getSettings } from "@/lib/settings";
 import { friendlyError } from "@/lib/tasks/errors";
 import { buildPrompt } from "@/lib/tasks/prompts";
 import { LeakError } from "@/lib/tasks/leak-error";
+import { checkQuestion } from "@/lib/tasks/question";
 import { pickRoute } from "@/lib/tasks/router";
 import { runTask } from "@/lib/tasks/run";
-import type { TaskOptions } from "@/lib/tasks/types";
+import type { Route, TaskOptions } from "@/lib/tasks/types";
 import {
   initialState,
   workspaceReducer,
@@ -37,6 +39,13 @@ import {
 export interface ConsentRequest {
   prompt: string;
   reason: string;
+  /** Items the user chose to keep visible that are in the prompt, per type. */
+  visible: Partial<Record<PiiType, number>>;
+}
+
+export interface RunOptions {
+  /** After an on-device failure: run in the cloud (still masked, still asks for consent). */
+  forceCloud?: boolean;
 }
 
 interface WorkspaceContextValue {
@@ -45,7 +54,7 @@ interface WorkspaceContextValue {
   /** Scans the current text on this device (regex, plus Gemini Nano when available). */
   runScan: () => Promise<void>;
   /** Masks, routes, asks for cloud consent if needed, then runs the chosen task. */
-  runCurrentTask: () => Promise<void>;
+  runCurrentTask: (options?: RunOptions) => Promise<void>;
   consentRequest: ConsentRequest | null;
   answerConsent: (accepted: boolean) => void;
 }
@@ -92,19 +101,36 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setConsentRequest(null);
   }, []);
 
-  const runCurrentTask = useCallback(async () => {
+  const runCurrentTask = useCallback(async ({ forceCloud = false }: RunOptions = {}) => {
     const s = latest.current;
     if (s.run.status === "running" || consentResolver.current) return;
 
     // The placeholder map lives only inside this call.
     const { masked, map } = mask(s.text, s.items);
-    const options: TaskOptions = {
-      style: s.task.style,
-      language: s.task.language,
-      question: s.task.kind === "ask" ? maskWithMap(s.task.question.trim(), map) : undefined,
-    };
     const status = await getDeviceStatus();
-    const route = pickRoute({ kind: s.task.kind, options }, masked, getSettings(), status);
+
+    // The question is typed by the user: scan it on the device too, and block if
+    // anything personal in it would still be visible.
+    let question: string | undefined;
+    let questionLeak: LeakError | null = null;
+    if (s.task.kind === "ask") {
+      const scanned = await scanDocument(s.task.question, status, getSettings());
+      const checked = checkQuestion(s.task.question, map, scanned.items);
+      question = checked.masked;
+      if (!checked.report.ok) questionLeak = new LeakError(checked.report.leaks, "question");
+    }
+
+    const options: TaskOptions = { style: s.task.style, language: s.task.language, question };
+    const route: Route = forceCloud
+      ? { target: "cloud", reason: "On-device AI could not answer → cloud" }
+      : pickRoute({ kind: s.task.kind, options }, masked, getSettings(), status);
+
+    if (questionLeak) {
+      const runId = latest.current.run.runId + 1;
+      dispatch({ type: "RUN_START", route });
+      dispatch({ type: "RUN_ERROR", runId, error: friendlyError(questionLeak) });
+      return; // nothing sent
+    }
 
     if (route.target === "cloud" && !hasCloudConsent()) {
       let prompt = "";
@@ -115,7 +141,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
       // Only ask when the text is clean; a leak is blocked by runTask without any call.
       if (prompt && leakCheck(prompt, s.items).ok) {
-        const accepted = await askConsent({ prompt, reason: route.reason });
+        const accepted = await askConsent({
+          prompt,
+          reason: route.reason,
+          visible: visibleItemCounts(prompt, s.items),
+        });
         if (!accepted) return; // nothing sent
         grantCloudConsent();
       }
@@ -131,6 +161,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         items: s.items,
         map,
         route,
+        // On-device tasks may fall back to the cloud only after the user agreed to cloud use.
+        allowCloudFallback: hasCloudConsent(),
         onUpdate: (text) => dispatch({ type: "RUN_UPDATE", runId, text }),
       });
       dispatch({ type: "RUN_SUCCESS", runId, result });

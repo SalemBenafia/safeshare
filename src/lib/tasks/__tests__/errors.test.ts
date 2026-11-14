@@ -19,6 +19,24 @@ describe("friendlyError", () => {
     expect(f.message).not.toContain("secret@example.com");
   });
 
+  it("explains a question leak, pointing back to the task", () => {
+    const err = new LeakError(
+      [
+        { text: "Sophie Martin", type: "PERSON", reason: "item" },
+        { text: "s@example.fr", type: "EMAIL", reason: "regex" },
+      ],
+      "question",
+    );
+    const f = friendlyError(err, true);
+    expect(f).toMatchObject({ kind: "leak", back: "task", title: "Your question contains personal details" });
+    expect(f.message).toContain("Names: 1, Emails: 1");
+    expect(f.message).not.toContain("Sophie");
+  });
+
+  it("sends a document leak back to review", () => {
+    expect(friendlyError(new LeakError([{ text: "x@example.com", type: "EMAIL", reason: "item" }]), true).back).toBe("review");
+  });
+
   it("detects offline from the browser flag", () => {
     expect(friendlyError(new Error("anything"), false).kind).toBe("offline");
   });

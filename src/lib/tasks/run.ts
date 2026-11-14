@@ -1,5 +1,5 @@
-// Browser-only. Runs a task: leakCheck -> model (hybrid or cloud) -> stream -> unmask.
-import { cloudModel, hybridModel } from "../ai/models";
+// Browser-only. Runs a task: leakCheck -> model (device, hybrid or cloud) -> stream -> unmask.
+import { cloudModel, deviceTaskModel, hybridModel } from "../ai/models";
 import { toSource } from "../ai/source";
 import { leakCheck, removeInventedPlaceholders, unmask } from "../pii/mask";
 import type { PiiItem, PlaceholderMap } from "../pii/types";
@@ -17,6 +17,11 @@ export interface RunTaskInput {
   /** In memory only. */
   map: PlaceholderMap;
   route: Route;
+  /**
+   * Hybrid route only: may the SDK fall back to the cloud? Pass true only after
+   * the user agreed to cloud use. When false, the task runs ONLY_ON_DEVICE.
+   */
+  allowCloudFallback?: boolean;
   /** Called with the UNMASKED answer so far, on every streamed chunk. */
   onUpdate?: (textSoFar: string) => void;
 }
@@ -31,13 +36,14 @@ function withoutTrailingPartial(text: string): string {
  * and calls no model. Otherwise streams the answer and unmasks it on the device.
  */
 export async function runTask(input: RunTaskInput): Promise<TaskResult> {
-  const { task, options, maskedText, items, map, route, onUpdate } = input;
+  const { task, options, maskedText, items, map, route, onUpdate, allowCloudFallback = false } = input;
   const prompt = buildPrompt(task, maskedText, options);
 
   const report = leakCheck(prompt, items);
   if (!report.ok) throw new LeakError(report.leaks);
 
-  const model = route.target === "cloud" ? cloudModel() : hybridModel();
+  const model =
+    route.target === "cloud" ? cloudModel() : allowCloudFallback ? hybridModel() : deviceTaskModel();
   const result = await model.generateContentStream(prompt);
 
   let accumulated = "";

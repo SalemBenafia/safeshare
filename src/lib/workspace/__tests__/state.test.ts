@@ -42,6 +42,22 @@ describe("workspaceReducer", () => {
     expect(reduce(s, { type: "SCAN_ERROR", runId: stale, error: "x" })).toBe(s);
   });
 
+  it("ignores a scan that finishes after the text changed", () => {
+    let s = reduce(initialState, { type: "SET_TEXT", text: TEXT });
+    s = reduce(s, { type: "SCAN_START" });
+    const running = s.scan.runId;
+    s = reduce(s, { type: "SET_TEXT", text: "A different document." });
+    const after = reduce(s, {
+      type: "SCAN_SUCCESS",
+      runId: running,
+      items: [it_("rim@example.com", "EMAIL")],
+      usedAI: false,
+      failedChunks: 0,
+    });
+    expect(after).toBe(s);
+    expect(after.items).toEqual([]);
+  });
+
   it("clears the review when the text changes", () => {
     const s = reduce(scanned(), { type: "SET_TEXT", text: "Something else." });
     expect(s).toMatchObject({ step: 1, maxStep: 1, items: [], text: "Something else." });

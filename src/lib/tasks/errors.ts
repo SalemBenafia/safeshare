@@ -1,4 +1,5 @@
 // Turns SDK, network and privacy errors into calm, actionable messages.
+import { TYPE_LABELS } from "../pii/labels";
 import { LeakError } from "./leak-error";
 
 export type ErrorKind =
@@ -15,6 +16,8 @@ export interface FriendlyError {
   kind: ErrorKind;
   title: string;
   message: string;
+  /** Where the user can fix it: the Review step (masking) or the Task step (question, retry). */
+  back?: "review" | "task";
 }
 
 interface ErrorLike {
@@ -28,11 +31,23 @@ function isOnline(): boolean {
 }
 
 export function friendlyError(err: unknown, online: boolean = isOnline()): FriendlyError {
+  if (err instanceof LeakError && err.where === "question") {
+    const byType = new Map<string, number>();
+    for (const l of err.leaks) byType.set(TYPE_LABELS[l.type], (byType.get(TYPE_LABELS[l.type]) ?? 0) + 1);
+    const summary = [...byType].map(([label, n]) => `${label}: ${n}`).join(", ");
+    return {
+      kind: "leak",
+      title: "Your question contains personal details",
+      message: `Nothing was sent. Remove them from the question (${summary}), or add them to the document so they are masked.`,
+      back: "task",
+    };
+  }
   if (err instanceof LeakError) {
     const n = err.leaks.length;
     return {
       kind: "leak",
       title: "Blocked before sending",
+      back: "review",
       message: `${n} personal ${n === 1 ? "item is" : "items are"} still visible in the text that would be sent. Nothing was sent. Go back to Review and mask ${n === 1 ? "it" : "them"}.`,
     };
   }

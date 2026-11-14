@@ -43,7 +43,8 @@ export type NewHistoryEntry = Omit<HistoryEntry, "id" | "createdAt">;
  * Builds the record to store. Pure: no network.
  * - masks ALL detected items (enabled or not) in the input and in the answer,
  *   with one shared map so placeholders match between them;
- * - refuses (LeakError) if leakCheck finds anything in either text.
+ * - refuses (LeakError) if a strict leakCheck finds anything in either text,
+ *   including a date the AI reworded ("10/01/2026" -> "January 10, 2026").
  */
 export function prepareHistoryRecord(
   text: string,
@@ -55,7 +56,11 @@ export function prepareHistoryRecord(
   const { masked, map } = mask(text, all);
   const maskedOutput = maskWithMap(result.text, map);
 
-  const leaks = [...leakCheck(masked, all).leaks, ...leakCheck(maskedOutput, all).leaks];
+  // Strict: anything date-like that survived (e.g. the AI reworded a date) blocks storage.
+  const leaks = [
+    ...leakCheck(masked, all, { strict: true }).leaks,
+    ...leakCheck(maskedOutput, all, { strict: true }).leaks,
+  ];
   if (leaks.length > 0) throw new LeakError(leaks);
 
   const itemCounts: Partial<Record<PiiType, number>> = {};

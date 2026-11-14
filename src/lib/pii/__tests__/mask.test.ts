@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cvAddress, cvNames, cvText } from "../__fixtures__/cv";
 import { letterNames, letterText } from "../__fixtures__/medical-letter";
-import { leakCheck, mask, maskWithMap, removeInventedPlaceholders, unmask } from "../mask";
+import { leakCheck, mask, maskWithMap, removeInventedPlaceholders, unmask, visibleItemCounts } from "../mask";
 import { mergeItems, scanWithRegex } from "../scan";
 import { item } from "./helpers";
 
@@ -28,7 +28,9 @@ describe("mask", () => {
     const text = "Leila Mansour wrote this. Ask Leila Mansour, not Marc Petit. Leila Mansour agrees.";
     const { masked, map } = mask(text, [item("Leila Mansour", "PERSON"), item("Marc Petit", "PERSON")]);
     expect(masked).toBe("[PERSON_1] wrote this. Ask [PERSON_1], not [PERSON_2]. [PERSON_1] agrees.");
-    expect(map.size).toBe(2);
+    expect(new Set(masked.match(/\[PERSON_\d+\]/g))).toEqual(new Set(["[PERSON_1]", "[PERSON_2]"]));
+    // The map also holds the name parts, so a later question can be masked consistently.
+    expect([...map.values()]).toEqual(["Leila Mansour", "Marc Petit", "Leila", "Mansour", "Marc", "Petit"]);
   });
 
   it("leaves disabled items untouched", () => {
@@ -37,7 +39,8 @@ describe("mask", () => {
       item("Tunis", "ADDRESS", { enabled: false }),
     ]);
     expect(masked).toBe("[PERSON_1] lives in Tunis.");
-    expect([...map.values()]).toEqual(["Emma Clark"]);
+    expect([...map.values()]).not.toContain("Tunis");
+    expect([...map.values()]).toEqual(["Emma Clark", "Emma", "Clark"]);
   });
 
   it("only matches whole words", () => {
@@ -111,6 +114,73 @@ describe("mask/unmask round trip", () => {
     for (const it of items) expect(masked).not.toContain(it.text);
     expect(leakCheck(masked, items).ok).toBe(true);
     expect(unmask(masked, map)).toBe(text);
+  });
+});
+
+describe("mask: case variants and name parts", () => {
+  const julien = item("Julien Moreau", "PERSON");
+
+  it("masks the same name in any letter case", () => {
+    const { masked, map } = mask("Julien Moreau wrote. JULIEN MOREAU signed. julien moreau agreed.", [julien]);
+    expect(masked).toBe("[PERSON_1] wrote. [PERSON_1] signed. [PERSON_1] agreed.");
+    expect(map.get("[PERSON_1]")).toBe("Julien Moreau");
+  });
+
+  it("masks parts of a name on their own, with their own placeholder", () => {
+    const text = "Julien Moreau is the patient. Mr Moreau was seen by Julien's doctor.";
+    const { masked, map } = mask(text, [julien]);
+    expect(masked).toBe("[PERSON_1] is the patient. Mr [PERSON_2] was seen by [PERSON_3]'s doctor.");
+    expect(unmask(masked, map)).toBe(text);
+  });
+
+  it("does not mask a lower-case word that happens to equal a name part", () => {
+    const { masked } = mask("Will Hunter said we will meet.", [item("Will Hunter", "PERSON")]);
+    expect(masked).toBe("[PERSON_1] said we will meet.");
+  });
+
+  it("skips particles and titles", () => {
+    const { masked } = mask("Ahmed Ben Ali met Ben and Dr Ali.", [item("Ahmed Ben Ali", "PERSON")]);
+    expect(masked).toBe("[PERSON_1] met Ben and Dr [PERSON_2].");
+  });
+
+  it("does not split names of other types or switched-off names", () => {
+    expect(mask("Olive Data SARL and Olive.", [item("Olive Data SARL", "OTHER")]).masked).toBe("[OTHER_1] and Olive.");
+    expect(mask("Mr Moreau", [item("Julien Moreau", "PERSON", { enabled: false })]).masked).toBe("Mr Moreau");
+  });
+
+  it("leakCheck catches a case variant and a name part", () => {
+    expect(leakCheck("[PERSON_1] and JULIEN MOREAU", [julien]).leaks).toEqual([
+      { text: "Julien Moreau", type: "PERSON", reason: "item" },
+    ]);
+    expect(leakCheck("Mr Moreau called.", [julien]).leaks).toEqual([{ text: "Moreau", type: "PERSON", reason: "item" }]);
+  });
+
+  it("maskWithMap ignores case", () => {
+    const map = new Map([["[PERSON_1]", "Julien Moreau"], ["[PERSON_2]", "Moreau"]]);
+    expect(maskWithMap("does julien moreau, or mr MOREAU, take it?", map)).toBe("does [PERSON_1], or mr [PERSON_2], take it?");
+  });
+});
+
+describe("leakCheck strict mode (before storing history)", () => {
+  it("blocks a reworded date only in strict mode", () => {
+    const items = [item("10/01/2026", "DATE")];
+    expect(leakCheck("Signed on January 10, 2026.", items).ok).toBe(true);
+    expect(leakCheck("Signed on January 10, 2026.", items, { strict: true }).leaks).toEqual([
+      { text: "January 10, 2026", type: "DATE", reason: "regex" },
+    ]);
+  });
+});
+
+describe("visibleItemCounts", () => {
+  it("counts switched-off items still in the text, by type", () => {
+    const items = [
+      item("10 January 2026", "DATE", { enabled: false }),
+      item("31 July 2026", "DATE", { enabled: false }),
+      item("1 March 2026", "DATE", { enabled: false }),
+      item("Rim Sassi", "PERSON"),
+    ];
+    expect(visibleItemCounts("From 10 january 2026 to 31 July 2026, [PERSON_1].", items)).toEqual({ DATE: 2 });
+    expect(visibleItemCounts("[PERSON_1] only.", items)).toEqual({});
   });
 });
 

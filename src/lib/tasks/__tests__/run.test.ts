@@ -2,14 +2,16 @@ import { InferenceSource } from "firebase/ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { itemId, type PiiItem } from "@/lib/pii/types";
 
-const { hybridStream, cloudStream } = vi.hoisted(() => ({
+const { hybridStream, cloudStream, deviceStream } = vi.hoisted(() => ({
   hybridStream: vi.fn(),
   cloudStream: vi.fn(),
+  deviceStream: vi.fn(),
 }));
 
 vi.mock("@/lib/ai/models", () => ({
   hybridModel: () => ({ generateContentStream: hybridStream }),
   cloudModel: () => ({ generateContentStream: cloudStream }),
+  deviceTaskModel: () => ({ generateContentStream: deviceStream }),
 }));
 
 const { LeakError, runTask } = await import("../run");
@@ -42,6 +44,9 @@ const cloud = { target: "cloud", reason: "Long document (4,000 characters) → c
 beforeEach(() => {
   hybridStream.mockReset();
   cloudStream.mockReset();
+  deviceStream.mockReset();
+  // Most tests below are about the hybrid model, as used after cloud consent.
+  deviceStream.mockImplementation((...args: unknown[]) => hybridStream(...args));
 });
 
 describe("runTask", () => {
@@ -81,12 +86,30 @@ describe("runTask", () => {
     expect((err as Error).message).not.toContain("Ines");
   });
 
-  it("uses the hybrid model for the hybrid route", async () => {
-    hybridStream.mockResolvedValue(streamOf(["ok"], InferenceSource.ON_DEVICE));
+  it("runs ONLY on the device for the hybrid route until the user agreed to cloud use", async () => {
+    deviceStream.mockReset().mockResolvedValue(streamOf(["ok"], InferenceSource.ON_DEVICE));
     const res = await runTask({ task: "summarise", options: {}, maskedText: masked, items, map, route: hybrid });
-    expect(hybridStream).toHaveBeenCalledOnce();
+    expect(deviceStream).toHaveBeenCalledOnce();
+    expect(hybridStream).not.toHaveBeenCalled();
     expect(cloudStream).not.toHaveBeenCalled();
     expect(res.source).toBe("ON_DEVICE");
+  });
+
+  it("uses the hybrid model (cloud fallback allowed) once the user agreed to cloud use", async () => {
+    deviceStream.mockReset();
+    hybridStream.mockResolvedValue(streamOf(["ok"], InferenceSource.IN_CLOUD));
+    const res = await runTask({
+      task: "summarise",
+      options: {},
+      maskedText: masked,
+      items,
+      map,
+      route: hybrid,
+      allowCloudFallback: true,
+    });
+    expect(hybridStream).toHaveBeenCalledOnce();
+    expect(deviceStream).not.toHaveBeenCalled();
+    expect(res.source).toBe("IN_CLOUD");
   });
 
   it("uses the cloud model for the cloud route and sends only masked text", async () => {

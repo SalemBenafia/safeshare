@@ -1,7 +1,7 @@
 // Masking and unmasking (SPEC §3 steps 4 and 7). Runs on-device only.
 import { scanWithRegex } from "./regex";
 import { claimLongestFirst, findOccurrences } from "./text";
-import { PII_TYPES, type PiiItem, type PiiType, type PlaceholderMap } from "./types";
+import { itemId, PII_TYPES, type PiiItem, type PiiType, type PlaceholderMap } from "./types";
 
 export interface MaskResult {
   masked: string;
@@ -9,39 +9,100 @@ export interface MaskResult {
   map: PlaceholderMap;
 }
 
-interface Claim {
+// ---------- what gets masked ----------
+
+/** Name particles and titles that are never masked on their own. */
+const NAME_PARTICLES = new Set([
+  "ben", "bin", "bint", "ibn", "el", "al", "de", "du", "da", "di", "del", "della", "des",
+  "la", "le", "van", "von", "der", "den", "dos", "das", "mr", "mrs", "ms", "miss", "dr", "prof",
+]);
+
+/**
+ * Parts of enabled multi-word names, so "Mr Moreau" is masked when "Julien Moreau"
+ * is an item. Parts of 3+ letters only; particles and titles are skipped.
+ */
+export function expandNameParts(items: PiiItem[]): PiiItem[] {
+  const known = new Set(items.map((i) => i.text.toLowerCase()));
+  const parts: PiiItem[] = [];
+  for (const item of items) {
+    if (!item.enabled || item.type !== "PERSON") continue;
+    const words = item.text.split(/[\s-]+/).filter(Boolean);
+    if (words.length < 2) continue;
+    for (const word of words) {
+      const part = word.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "");
+      const key = part.toLowerCase();
+      if (part.length < 3 || NAME_PARTICLES.has(key) || known.has(key)) continue;
+      known.add(key);
+      parts.push({ ...item, id: itemId(part), text: part });
+    }
+  }
+  return parts;
+}
+
+interface Target {
+  item: PiiItem;
+  /** Name parts only match capitalised words ("Will", not "will"). */
+  capitalisedOnly: boolean;
+}
+
+/** Enabled items (any case) plus their name parts (capitalised only). */
+function maskTargets(items: PiiItem[]): Target[] {
+  const seen = new Set<string>();
+  const targets: Target[] = [];
+  for (const item of items) {
+    const key = item.text.toLowerCase();
+    if (!item.enabled || !item.text || seen.has(key)) continue;
+    seen.add(key);
+    targets.push({ item, capitalisedOnly: false });
+  }
+  for (const part of expandNameParts(items)) targets.push({ item: part, capitalisedOnly: true });
+  return targets;
+}
+
+const isCapital = (ch: string | undefined) => !!ch && ch !== ch.toLowerCase();
+
+function targetOccurrences(text: string, target: Target): number[] {
+  return findOccurrences(text, target.item.text, { ignoreCase: true }).filter(
+    (start) => !target.capitalisedOnly || isCapital(text[start]),
+  );
+}
+
+export interface MaskSpan {
   start: number;
   end: number;
   item: PiiItem;
 }
 
 /**
+ * Where enabled items (and name parts) will be masked, longest first, without
+ * overlaps. Shared by mask(), leakCheck() and the review highlights.
+ */
+export function maskSpans(text: string, items: PiiItem[]): MaskSpan[] {
+  const candidates: MaskSpan[] = [];
+  for (const target of maskTargets(items)) {
+    for (const start of targetOccurrences(text, target)) {
+      candidates.push({ start, end: start + target.item.text.length, item: target.item });
+    }
+  }
+  return claimLongestFirst(candidates);
+}
+
+/**
  * Replaces each enabled item with a placeholder such as `[PERSON_1]`.
+ * Matches any letter case; parts of names ("Moreau") get their own placeholder.
  * Longest items win on overlap; the same value always gets the same placeholder;
  * numbering follows the order of first appearance, per type.
  */
 export function mask(text: string, items: PiiItem[]): MaskResult {
-  const enabled = new Map<string, PiiItem>();
-  for (const item of items) {
-    if (item.enabled && item.text && !enabled.has(item.text)) enabled.set(item.text, item);
-  }
-
-  const candidates: Claim[] = [];
-  for (const item of enabled.values()) {
-    for (const start of findOccurrences(text, item.text)) {
-      candidates.push({ start, end: start + item.text.length, item });
-    }
-  }
-  const claims = claimLongestFirst(candidates);
-
   const placeholderFor = new Map<string, string>();
   const counters = new Map<PiiType, number>();
   const map: PlaceholderMap = new Map();
   let masked = "";
   let last = 0;
 
-  for (const { start, end, item } of claims) {
-    let placeholder = placeholderFor.get(item.text);
+  const placeholderOf = (item: PiiItem): string => {
+    const key = item.text.toLowerCase();
+    let placeholder = placeholderFor.get(key);
     if (!placeholder) {
       let n = counters.get(item.type) ?? 0;
       do {
@@ -49,25 +110,33 @@ export function mask(text: string, items: PiiItem[]): MaskResult {
         placeholder = `[${item.type}_${n}]`;
       } while (text.includes(placeholder)); // never reuse a token already in the source
       counters.set(item.type, n);
-      placeholderFor.set(item.text, placeholder);
+      placeholderFor.set(key, placeholder);
       map.set(placeholder, item.text);
     }
-    masked += text.slice(last, start) + placeholder;
+    return placeholder;
+  };
+
+  for (const { start, end, item } of maskSpans(text, items)) {
+    masked += text.slice(last, start) + placeholderOf(item);
     last = end;
   }
   masked += text.slice(last);
+
+  // Name parts that only appear inside full names still get a placeholder, so a
+  // question or an answer that says "Ms Mansour" can be masked with this map.
+  for (const part of expandNameParts(items)) placeholderOf(part);
   return { masked, map };
 }
 
 /**
- * Masks extra text (e.g. the user's question) with an EXISTING map, so the same
- * value gets the same placeholder as in the document. Longest values first,
- * whole words only. Values not in the map are left as they are.
+ * Masks extra text (the user's question, or an answer before it is stored) with
+ * an EXISTING map, so the same value gets the same placeholder as in the document.
+ * Any letter case, longest values first, whole words only.
  */
 export function maskWithMap(text: string, map: PlaceholderMap): string {
   const candidates: { start: number; end: number; placeholder: string }[] = [];
   for (const [placeholder, value] of map) {
-    for (const start of findOccurrences(text, value)) {
+    for (const start of findOccurrences(text, value, { ignoreCase: true })) {
       candidates.push({ start, end: start + value.length, placeholder });
     }
   }
@@ -114,6 +183,8 @@ export function removeInventedPlaceholders(text: string): string {
   );
 }
 
+// ---------- leak check ----------
+
 export interface Leak {
   text: string;
   type: PiiType;
@@ -129,30 +200,49 @@ export interface LeakReport {
 
 /** Regex hit types that block a task even when they are not an item. */
 const BLOCKING_REGEX_TYPES: ReadonlySet<PiiType> = new Set(["EMAIL", "PHONE", "ID_NUMBER", "BANK"]);
+/** Stricter set for data that will be STORED (history): reworded dates block too. */
+const STRICT_REGEX_TYPES: ReadonlySet<PiiType> = new Set([...BLOCKING_REGEX_TYPES, "DATE", "DATE_OF_BIRTH"]);
 
 /**
  * Must pass before any hybrid or cloud call; if `ok` is false, block the call.
- * Reports enabled items still in the masked text, plus new email, phone, ID or
- * bank regex hits that the user did not deliberately switch off.
+ * Reports enabled items (any case, including name parts) still in the text, plus
+ * new email, phone, ID or bank regex hits that the user did not deliberately
+ * switch off. With `strict` (used before storing history), dates block too.
  */
-export function leakCheck(masked: string, items: PiiItem[]): LeakReport {
+export function leakCheck(masked: string, items: PiiItem[], options: { strict?: boolean } = {}): LeakReport {
   const leaks: Leak[] = [];
   const reported = new Set<string>();
-  const disabled = new Set(items.filter((i) => !i.enabled).map((i) => i.text));
+  const disabled = new Set(items.filter((i) => !i.enabled).map((i) => i.text.toLowerCase()));
 
-  for (const item of items) {
-    if (!item.enabled || reported.has(item.text)) continue;
-    if (findOccurrences(masked, item.text).length > 0) {
-      leaks.push({ text: item.text, type: item.type, reason: "item" });
-      reported.add(item.text);
-    }
+  for (const { item } of maskSpans(masked, items)) {
+    const key = item.text.toLowerCase();
+    if (reported.has(key)) continue;
+    leaks.push({ text: item.text, type: item.type, reason: "item" });
+    reported.add(key);
   }
+  const blocking = options.strict ? STRICT_REGEX_TYPES : BLOCKING_REGEX_TYPES;
   for (const hit of scanWithRegex(masked)) {
-    // Only contact, ID and bank patterns block on their own; dates the user chose to show never do.
-    if (!BLOCKING_REGEX_TYPES.has(hit.type)) continue;
-    if (disabled.has(hit.text) || reported.has(hit.text)) continue;
+    // Dates the user chose to show never block a task (only stored history, with `strict`).
+    if (!blocking.has(hit.type)) continue;
+    const key = hit.text.toLowerCase();
+    if ((!options.strict && disabled.has(key)) || reported.has(key)) continue;
     leaks.push({ text: hit.text, type: hit.type, reason: "regex" });
-    reported.add(hit.text);
+    reported.add(key);
   }
   return { ok: leaks.length === 0, leaks };
+}
+
+/** Switched-off items that are still visible in `text`, counted per type (for the consent dialog). */
+export function visibleItemCounts(text: string, items: PiiItem[]): Partial<Record<PiiType, number>> {
+  const counts: Partial<Record<PiiType, number>> = {};
+  const seen = new Set<string>();
+  for (const item of items) {
+    const key = item.text.toLowerCase();
+    if (item.enabled || seen.has(key)) continue;
+    seen.add(key);
+    if (findOccurrences(text, item.text, { ignoreCase: true }).length > 0) {
+      counts[item.type] = (counts[item.type] ?? 0) + 1;
+    }
+  }
+  return counts;
 }

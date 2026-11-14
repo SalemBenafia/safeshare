@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { TYPE_LABELS } from "@/lib/pii/labels";
+import type { PiiType } from "@/lib/pii/types";
 import { useWorkspace } from "./WorkspaceProvider";
 
 const PLACEHOLDER = /(\[[A-Z_]+_\d+\])/;
@@ -23,6 +25,9 @@ export function ConsentDialog() {
   }, [consentRequest]);
 
   const chars = consentRequest?.prompt.length ?? 0;
+  const visible = Object.entries(consentRequest?.visible ?? {}) as [PiiType, number][];
+  const visibleTotal = visible.reduce((sum, [, n]) => sum + n, 0);
+  const visibleSummary = visible.map(([type, n]) => `${TYPE_LABELS[type]}: ${n}`).join(", ");
 
   return (
     <dialog
@@ -67,7 +72,10 @@ export function ConsentDialog() {
           </div>
 
           <p className="text-sm font-medium">
-            {chars.toLocaleString("en")} characters will be sent. 0 personal items are included.
+            {chars.toLocaleString("en")} characters will be sent.{" "}
+            {visibleTotal === 0
+              ? "No personal items are included."
+              : `${visibleTotal} ${visibleTotal === 1 ? "item" : "items"} you chose to keep visible ${visibleTotal === 1 ? "is" : "are"} included (${visibleSummary}).`}
           </p>
           <p className="text-xs text-muted">We ask once per browser session.</p>
 

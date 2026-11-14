@@ -33,7 +33,7 @@ function HistoryStatus({ status, message }: HistorySaveState) {
 }
 
 export function ResultStep() {
-  const { state, dispatch } = useWorkspace();
+  const { state, dispatch, runCurrentTask } = useWorkspace();
   const { run } = state;
   const { history_enabled: historyEnabled } = useSettings();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -95,13 +95,32 @@ export function ResultStep() {
         <div role="alert" className="space-y-3 rounded-xl border border-warn/40 bg-warn-soft p-5 text-warn">
           <h3 className="font-semibold">{run.error.title}</h3>
           <p className="text-sm">{run.error.message}</p>
-          <button
-            type="button"
-            onClick={() => dispatch({ type: "GO_TO_STEP", step: run.error?.kind === "leak" ? 2 : 3 })}
-            className="rounded-lg border border-warn/40 bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-canvas"
-          >
-            {run.error.kind === "leak" ? "Back to review" : "Back to task"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {run.route?.target === "hybrid" && run.error.kind !== "leak" && (
+              <button
+                type="button"
+                onClick={() => void runCurrentTask({ forceCloud: true })}
+                className="rounded-lg bg-cloud-fill px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Run in the cloud instead
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() =>
+                dispatch({
+                  type: "GO_TO_STEP",
+                  step: run.error?.back === "review" ? 2 : 3,
+                })
+              }
+              className="rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-canvas"
+            >
+              {run.error.back === "review" ? "Back to review" : "Back to task"}
+            </button>
+          </div>
+          {run.route?.target === "hybrid" && run.error.kind !== "leak" && (
+            <p className="text-sm">Only masked text is sent, and SafeShare asks first if you haven&apos;t agreed yet.</p>
+          )}
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">

@@ -40,6 +40,7 @@ export const PII_SCAN_SCHEMA = Schema.object({
 let ai: AI | undefined;
 let scan: GenerativeModel | undefined;
 let imageRead: GenerativeModel | undefined;
+let deviceTask: GenerativeModel | undefined;
 /** Task models are tied to a cloud model name (Remote Config `cloud_model`). */
 let hybrid: { model: GenerativeModel; cloudModel: string } | undefined;
 let cloud: { model: GenerativeModel; cloudModel: string } | undefined;
@@ -76,6 +77,19 @@ export function imageReadModel(): GenerativeModel {
     onDeviceParams: { createOptions: DEVICE_CREATE_OPTIONS },
   });
   return imageRead;
+}
+
+/**
+ * Task model for on-device tasks BEFORE the user has agreed to cloud use:
+ * ONLY_ON_DEVICE, so PREFER_ON_DEVICE can never silently fall back to the cloud
+ * without consent. Send masked text only.
+ */
+export function deviceTaskModel(): GenerativeModel {
+  deviceTask ??= getGenerativeModel(getAIInstance(), {
+    mode: InferenceMode.ONLY_ON_DEVICE,
+    onDeviceParams: { createOptions: DEVICE_CREATE_OPTIONS },
+  });
+  return deviceTask;
 }
 
 /**

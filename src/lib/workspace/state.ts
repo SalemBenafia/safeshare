@@ -148,7 +148,8 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
         ...initialState,
         text: action.text,
         task: state.task,
-        scan: { ...initialState.scan, runId: state.scan.runId },
+        // A new runId makes any scan still running for the old text stale.
+        scan: { ...initialState.scan, runId: state.scan.runId + 1 },
         run: { ...idleRun, runId: state.run.runId },
       };
 

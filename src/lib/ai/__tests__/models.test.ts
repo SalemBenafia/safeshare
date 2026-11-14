@@ -14,7 +14,7 @@ vi.mock("@/lib/firebase", () => ({ getFirebaseApp: vi.fn(() => ({})) }));
 vi.mock("@/lib/settings", () => ({ getSettings: () => mocks.settings }));
 
 const { InferenceMode } = await import("firebase/ai");
-const { cloudModel, hybridModel, imageReadModel, scanModel } = await import("../models");
+const { cloudModel, deviceTaskModel, hybridModel, imageReadModel, scanModel } = await import("../models");
 
 type Params = { mode: string; inCloudParams?: { model: string }; onDeviceParams?: unknown };
 const paramsOf = (m: unknown) => (m as { params: Params }).params;
@@ -49,6 +49,7 @@ describe("on-device models never use the cloud", () => {
   it.each([
     ["scanModel", scanModel],
     ["imageReadModel", imageReadModel],
+    ["deviceTaskModel", deviceTaskModel],
   ])("%s is ONLY_ON_DEVICE with no cloud params", (_name, factory) => {
     const p = paramsOf(factory());
     expect(p.mode).toBe(InferenceMode.ONLY_ON_DEVICE);

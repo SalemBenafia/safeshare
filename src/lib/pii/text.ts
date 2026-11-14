@@ -7,18 +7,34 @@ export function isWordChar(char: string | undefined): boolean {
 }
 
 /**
- * Start offsets of every exact occurrence of `value` in `text` that sits on a
- * word boundary: if the value starts (or ends) with a letter/digit, the
- * neighbouring character must not be a letter/digit. "Ali" does not match in "Alice".
+ * Start offsets of every occurrence of `value` in `text` that sits on a word
+ * boundary: if the value starts (or ends) with a letter/digit, the neighbouring
+ * character must not be a letter/digit. "Ali" does not match in "Alice".
+ * With `ignoreCase`, "JULIEN MOREAU" also matches "Julien Moreau".
  */
-export function findOccurrences(text: string, value: string): number[] {
+export function findOccurrences(
+  text: string,
+  value: string,
+  options: { ignoreCase?: boolean } = {},
+): number[] {
   if (!value) return [];
+  let hay = text;
+  let needle = value;
+  if (options.ignoreCase) {
+    const lowerHay = text.toLowerCase();
+    const lowerNeedle = value.toLowerCase();
+    // Only when lower-casing keeps offsets aligned (true for almost all scripts).
+    if (lowerHay.length === text.length && lowerNeedle.length === value.length) {
+      hay = lowerHay;
+      needle = lowerNeedle;
+    }
+  }
   const starts: number[] = [];
   const checkStart = isWordChar(value[0]);
   const checkEnd = isWordChar(value[value.length - 1]);
   let from = 0;
   while (from <= text.length - value.length) {
-    const at = text.indexOf(value, from);
+    const at = hay.indexOf(needle, from);
     if (at === -1) break;
     const end = at + value.length;
     const okStart = !checkStart || !isWordChar(text[at - 1]);
